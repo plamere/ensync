@@ -1,0 +1,1 @@
+s3cmd sync --acl-public examples  s3://static.echonest.com/ensync/

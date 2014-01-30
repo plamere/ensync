@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>ENsync example 1</title>
+		<meta charset="utf-8">
+        <script src="http://ajax.googleapis.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+		<script src="js/ensync.js"></script>
+         <link href="styles.css" rel="stylesheet" media="screen">
+	</head>
+<body>
+    <h2> ENsync Example 1 </h1>
+    Load a song and do something on every bar and beat.
+    <br>
+    <div id="info"> </div>
+    <div id="bar"> ... </div>
+    <div id="beat"> ... </div>
+    <div id="ready"> 
+        <button id="play"> play </button>
+        <button id="stop"> stop </button>
+    </div>
+
+    <script>
+        var theSong;
+
+        function loadSong() {
+            ENSync.loadSongFromJSON("data/sample.js", "data/sample.mp3",
+                function(song) {
+                    theSong = song;
+
+                    info("song is loaded: " + song.songData.title);
+
+                    song.sel('beats').on(
+                        function(q) {
+                            $("#beat").text('beat ' + q.which);
+                        }
+                    );
+
+                    song.sel('bars').on(
+                        function(q) {
+                            $("#bar").text('bar ' + q.which);
+                        }
+                    );
+
+                    song.highest('beats', 'volume', 1)
+                        .on( function(q) {
+                            info("loudest beat plays in 4 seconds");
+                        }, -4)
+                        .on( function(q) {
+                            info("loudest beat is " + q.which);
+                        });
+
+                    $("#ready").show();
+                }
+            );
+        }
+
+        function info(s) {
+            $("#info").text(s);
+        }
+
+        $(document).ready(function () {
+            $("#ready").hide();
+
+            $("#play").click(function() {
+                theSong.play();
+            });
+
+            $("#stop").click(function() {
+                theSong.stop();
+            });
+
+            loadSong();
+        });
+    </script>
+</body>
+</html>
