@@ -363,6 +363,7 @@ ENSync.Qlist.prototype = {
 
 
 ENSync.Song = function(songData) {
+    var that = this;
     ENSync.Qlist.call(this, songData);
     songData.playlist = [];
     this._push( {start:0, duration:this.songData.analysis.track.duration, confidence:1.0 } );
@@ -374,6 +375,7 @@ ENSync.Song = function(songData) {
         types.forEach(function(type, i) {
             songData.analysis[type].forEach(function(q, i, qlist) {
                 q.which = i;
+                q.song = that;
                 if (i > 0) {
                     q.prev = qlist[i-1];
                 } else {
@@ -604,4 +606,8 @@ ENSync.Song.prototype.stop = function() {
         this.source.stop(0);
         this.source = null;
     }
+}
+
+ENSync.Song.prototype.isPlaying = function() {
+    return this.source ? true : false;
 }

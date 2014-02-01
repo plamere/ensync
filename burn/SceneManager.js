@@ -3,8 +3,6 @@
 function SceneManager(song, events) {
     var _scenes = [];
     var _song = song;
-    var _prebeat = .3;
-    var _presegments = .2;
 
     function getActiveScenes() {
         return _.filter(_scenes, function(scene) { return scene.active; } );
@@ -66,18 +64,14 @@ function SceneManager(song, events) {
         var presegment = events['presegments'];
         _song.sel('segments').on(function(q) {
             _.each(getActiveScenes(), function(scene, which) {
-                if (scene.scene.segment) {
-                    scene.scene.segment(q);
+                if (scene.scene.presegment) {
+                    scene.scene.presegment(q);
                 }
             });
         }, -presegment);
     }
 
     return {
-
-        prebeat: function() {
-            return _prebeat;
-        },
 
         addScene: function(scene) {
             _scenes.push(scene)

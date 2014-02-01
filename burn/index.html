@@ -17,33 +17,135 @@
 
 var container, stats;
 var camera, scene, renderer;
-
 var radius = 300, theta = 0;
 var cubeWidth = 20;
-var frameNumber = 0;
 
-var maxObjects = 9 * 9 * 9;
+var maxSoldiers = 9 * 9 * 9;
 var rows = 27;
 var cRows = 9;
-var objects = [];
+var prebeat = .3;
+var preseg = .2;
+var curScaleAxis = 'y';
 
 var theSong = null;
 var sm;     // the scene manager
 
-
 var theScenes = [
-    { start:0, duration:300, scene:SimplePulser('simple pulser', 'beat', 1.5)},
-    { start:10, duration:2, scene:SimpleCylinder('simple cylinder', 10, 0, 0, 2, 0)},
-    { start:20, duration:2, scene:SimpleFlatSquare('flat square', 1, 2, .005)},
-    { start:40, duration:1, scene:SimpleCylinder('simple cylinder', 10, 0, 0, 2, 0)},
-    { start:43, duration:1, scene:SimpleCylinder('simple cylinder', 20, 0, 0, 2, 0)},
-    { start:45, duration:1, scene:SimpleCylinder('simple cylinder', 20, 0, 0, 2, 0)},
-    { start:50, duration:2, scene:SimpleFlatSquare('flat square', 1.2, 1, .005)},
+    { start:0, duration:300, scene:ElliePulser('simple pulser')},
+    { start:0, duration:300, scene:SimplePulser('simple pulser', 'prebeat', prebeat, 1.5)},
+    { start:0, duration:300, scene:SimplePulser('simple pulser', 'presegment', preseg, 1.5)},
+
+    { start:0, duration:11, scene:introScene()},
+
+    { start:11, duration:22, scene:verse(0)},
+    { start:33, duration:16, scene:pre(0)},
+    { start:49, duration:6, scene:chorus(0)},
+    { start:55, duration:11, scene:burn(0)},
+
+    { start:66, duration:22, scene:verse(1)},
+    { start:88, duration:16, scene:pre(1)},
+    { start:104, duration:6, scene:chorus(1)},
+    { start:110, duration:10, scene:burn(1)},
+
+    { start:120, duration:12, scene:pre(2)},
+    { start:132, duration:11, scene:theBreak()},
+    { start:143, duration:12, scene:theBuild()},
+    { start:165, duration:12, scene:pre(2)},
+    { start:182, duration:4.7, scene:chorus(2)},
+    { start:186.7, duration:2.3, scene:allStop()},
+    { start:189, duration:11, scene:burn(2)},
+
+    { start:200, duration:16, scene:pre(3)},
+    { start:216, duration:6, scene:chorus(3)},
+    { start:222, duration:1, scene:finalBurn()},
+    { start:223, duration:4, scene:fade()},
 ];
+
+
+function introScene() {
+    return {
+        'start': function(start, duration) {
+            console.log('introScene', start, duration);
+        }
+    }
+}
+
+function verse(level) {
+    return {
+        'start': function(start, duration) {
+            console.log('verse', level, start, duration);
+        }
+    }
+}
+
+function pre(level) {
+    return {
+        'start': function(start, duration) {
+            console.log('pre', level, start, duration);
+        }
+    }
+}
+
+function chorus(level) {
+    return {
+        'start': function(start, duration) {
+            console.log('chorus', level, start, duration);
+        }
+    }
+}
+
+function burn(level) {
+    return {
+        'start': function(start, duration) {
+            console.log('burn', level, start, duration);
+        }
+    }
+}
+
+function theBreak(level) {
+    return {
+        'start': function(start, duration) {
+            console.log('theBreak', level, start, duration);
+        }
+    }
+}
+
+function theBuild(level) {
+    return {
+        'start': function(start, duration) {
+            console.log('theBuild', level, start, duration);
+        }
+    }
+}
+
+function allStop(level) {
+    return {
+        'start': function(start, duration) {
+            console.log('allStop', level, start, duration);
+        }
+    }
+}
+
+function finalBurn() {
+    return {
+        'start': function(start, duration) {
+            console.log('finalburn', start, duration);
+        }
+    }
+}
+
+function fade() {
+    return {
+        'start': function(start, duration) {
+            console.log('fade', start, duration);
+        }
+    }
+}
 
 function SimpleFlatSquare(name, scale, dur, delay) {
     return {
         'start': function(start, duration) {
+            curScaleAxis = 'y';
             makeFlatSquare(scale, dur, delay);
         }
     }
@@ -52,24 +154,43 @@ function SimpleFlatSquare(name, scale, dur, delay) {
 function SimpleCylinder(name, rows, radius, gap, duration, delay) {
     return {
         'start': function(start, duration) {
+            curScaleAxis = 'z';
             makeCylinder(rows, radius, gap, duration, delay);
         }
     }
 }
 
-function SimplePulser(name, quanta, scale) {
+function SimplePulser(name, quanta, time, scale) {
+    var pulseFunc = function(q) {
+            var idx = q.which % soldierG.children.length;
+            var o = soldierG.children[idx];
+            pulseSingle(o, time, 0);
+        };
+
+    var scene = {};
+    scene[quanta] = pulseFunc;
+    return scene;
+}
+
+function EllieRotator(name, rows, radius, gap, duration, delay) {
     return {
-        'prebeat': function(q) {
-            var prebeat = sm.prebeat();
-            var idx = q.which % objects.length;
-            var o = objects[idx];
-            console.log('pulse', idx);
-            pulseSingle(o, prebeat, 0);
+        'start': function(start, duration) {
+            curScaleAxis = 'z';
+            makeCylinder(rows, radius, gap, duration, delay);
         }
     }
 }
 
-init();
+function ElliePulser() {
+    return {
+        'prebeat': function(q) {
+            var idx = q.which % ellieG.children.length;
+            var o = ellieG.children[idx];
+            rotateSingle(o, q.duration * 2);
+        }
+    }
+}
+
 
 function init() {
     loadSong();
@@ -90,7 +211,7 @@ function init() {
 
     addStars();
     addLights();
-    addObjects(maxObjects);
+    addObjects(maxSoldiers);
 
     renderer = new THREE.WebGLRenderer();
     renderer.setClearColor( 0x000 );
@@ -220,7 +341,7 @@ function makeSquare() {
         return i % rows * 20 - rows / 2 * 20;
     }
 
-    objects.forEach(function(o, i) {
+    soldierG.children.forEach(function(o, i) {
         oMoveTo(o, getRow(i), getCol(i), 0, 1, i);
     });
 }
@@ -235,34 +356,34 @@ function makeFlatSquare(scale, duration, delay) {
         return i % rows * cubeScale - rows / 2 * cubeScale;
     }
 
-    objects.forEach(function(o, i) {
+    soldierG.children.forEach(function(o, i) {
         oMoveTo(o, getRow(i), 0, getCol(i), duration, i * delay);
     });
 }
 
-function makeCircle(radius) {
+function makeCircle(objects, height, radiusFactor) {
     var numObjects = objects.length;
-    if (radius <= 0) {
-        radius = cubeWidth * numObjects / (2 * Math.PI);
-    }
+    var radius = cubeWidth * numObjects / (2 * Math.PI);
+    radius *= radiusFactor;
+
     objects.forEach(function(o, i) {
         var angle = 2 * Math.PI * i / numObjects;
         var x = radius * Math.sin(angle);
         var y = radius * Math.cos(angle);
-        moveTo(o, x, 0, y, 1000, i);
-        rotateTo(o, 0, angle, 0, 1000, i);
+        moveTo(o, x, height, y, 1, 0);
+        rotateTo(o, 0, angle, 0, 1, 0);
     });
 }
 
 function makeCylinder(rows, radius, gap, duration, delay) {
-    var numObjects = objects.length;
+    var numObjects = soldierG.children.length;
     var objectsPerRow = Math.floor(numObjects/rows);
     if (radius <= 0) {
         radius = cubeWidth * objectsPerRow / (2 * Math.PI);
     }
 
     var height = rows * (cubeWidth + gap);
-    objects.forEach(function(o, i) {
+    soldierG.children.forEach(function(o, i) {
         var row = Math.floor(i / objectsPerRow);
         var angle = ((i % objectsPerRow) /objectsPerRow) * 2 * Math.PI;
         var x = radius * Math.sin(angle);
@@ -306,7 +427,7 @@ function slam(wideScale, narrowScale) {
         tweenThere.start();
     }
 
-    objects.forEach(function(o, i) {
+    soldierG.children.forEach(function(o, i) {
         var wide = {x:getRow(i, wideScale), y:0, z:getCol(i, wideScale) };
         var narrow = {x:getRow(i, narrowScale), y:0, z:getCol(i, narrowScale) };
         slamOne(o, wide, narrow);
@@ -320,7 +441,7 @@ function makeCube() {
         return i * cubeWidth - cRows / 2 * cubeWidth;
     }
 
-    objects.forEach(function(o, i) {
+    soldierG.children.forEach(function(o, i) {
         oMoveTo(o, c2s(x), c2s(y), c2s(z), 1, i);
         if (++x >= cRows) {
             x = 0;
@@ -333,42 +454,53 @@ function makeCube() {
 }
 
 function wave(height) {
-    objects.forEach(function(o, i) {
+    soldierG.children.forEach(function(o, i) {
         pulseSingle(o, .08, i * .04);
     });
 }
 
 
 function pulseSingle(o, period, delay) {
-    var startScale = o.scale.y;
-    var curState = { y:o.scale.y };
-    var newState = { y:o.scale.y * 2.2 };
-    var doneState = { y:o.scale.y };
-    var count;
+    var scale = 4;
+    var curState = { val:1 };
+    var newState = { val: scale };
+    var doneState = { val:1};
 
     var tweenThere = new TWEEN.Tween(curState)
         .to(newState, 1000 * period / 2)
         .onUpdate( function() {
-            o.scale.x = this.y;
-            o.scale.y = this.y;
-            o.scale.z = this.y;
+            o.scale[curScaleAxis] = this.val;
         })
         .easing(TWEEN.Easing.Elastic.Out);
 
     var tweenBack = new TWEEN.Tween(newState)
         .to(doneState, 1000 * period / 2)
         .onUpdate( function() {
-            o.scale.x = this.y;
-            o.scale.y = this.y;
-            o.scale.z = this.y;
+            o.scale[curScaleAxis] = this.val;
         })
-        .easing(TWEEN.Easing.Quartic.Out);
+        .easing(TWEEN.Easing.Quartic.Out)
+        .onComplete(function() {
+            o.scale = {x:1, y:1, z:1 };
+        });
     tweenThere.chain(tweenBack);
     tweenThere.start();
 }
 
+function rotateSingle(o, period) {
+    var curState = { val:0 };
+    var newState = { val: Math.PI };
+
+    var tweenThere = new TWEEN.Tween(curState)
+        .to(newState, 1000 * period)
+        .onUpdate( function() {
+            o.rotation.y = this.val;
+        })
+        .easing(TWEEN.Easing.Elastic.Out);
+    tweenThere.start();
+}
+
 function randomSlew() {
-    objects.forEach(function(o, i) {
+    soldierG.children.forEach(function(o, i) {
         var curPos = { x: o.position.x, y:o.position.y, z:o.position.z };
 
         var newPos = {}
@@ -397,7 +529,8 @@ function loadSong() {
         function(song) {
             theSong = song;
             var events = {
-                'prebeats':.3
+                'prebeats':prebeat,
+                'presegments':preseg
             }
             sm = SceneManager(theSong, events);
             sm.addScenes(theScenes);
@@ -414,22 +547,38 @@ function loadSong() {
     );
 }
 
-function addObjects(count) {
-    var geometry = new THREE.CubeGeometry( cubeWidth, cubeWidth, cubeWidth );
+function addObjects(maxSoldiers) {
+    var geometry = new THREE.CubeGeometry( cubeWidth * 3, cubeWidth *3, cubeWidth * 3);
+    var imageCount = 11;
 
-    for ( var i = 0; i < count; i ++ ) {
+    // add ellie objects
+
+   ellieG = new THREE.Object3D();
+    for (var i = 0; i < imageCount; i++) {
+       var texture =  THREE.ImageUtils.loadTexture('images/image' + i + '.jpg');
+       texture.flipY = true;
+       var material = new THREE.MeshLambertMaterial({
+           map: texture
+       });
+       var object = new THREE.Mesh( geometry, material);
+       ellieG.add(object);
+       scene.add(ellieG);
+    }
+    makeCircle(ellieG.children, cubeWidth * 6, 6.2);
+
+   var geometry = new THREE.CubeGeometry( cubeWidth, cubeWidth, cubeWidth );
+   soldierG = new THREE.Object3D();
+    for ( var i = 0; i < maxSoldiers; i ++ ) {
         var color = Math.random() * 0xffffff;
         var color2 = Math.random() * 0xffffff;
-        var object = new THREE.Mesh( geometry, new THREE.MeshPhongMaterial( 
-            { color: color, ambient:color2, specular:0x050505, shininess:100 } ) );
+        var soldier = new THREE.Mesh( geometry, new THREE.MeshPhongMaterial( 
+                { color: color, ambient:color2, specular:0x050505, shininess:100 } ) );
 
-        object.position.x = Math.random() * 800 - 400;
-        object.position.y = Math.random() * 800 - 400;
-        object.position.z = Math.random() * 800 - 400;
-
-        object.queue = [];
-        scene.add( object );
-        objects.push(object);
+        soldier.position.x = Math.random() * 800 - 400;
+        soldier.position.y = Math.random() * 800 - 400;
+        soldier.position.z = Math.random() * 800 - 400;
+        soldierG.add(soldier);
+        scene.add(soldierG);
     }
 }
 
@@ -525,13 +674,15 @@ function animate() {
 
 function render() {
     theta += 0.3;
-    frameNumber += 1;
     camera.position.x = radius * Math.sin( THREE.Math.degToRad( theta ) );
     camera.position.y = radius * Math.sin( THREE.Math.degToRad( theta ) );
     camera.position.z = radius * Math.cos( THREE.Math.degToRad( theta ) );
     camera.lookAt( scene.position );
     renderer.render( scene, camera );
 }
+
+init();
+
 
 </script>
 </body>
