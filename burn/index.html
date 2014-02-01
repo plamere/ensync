@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>Ellie Goulding - burn</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<script src="js/three.min.js"></script>
+		<script src="js/stats.min.js"></script>
+		<script src="js/tween.min.js"></script>
+		<script src="js/lodash.min.js"></script>
+		<script src="js/ensync.js"></script>
+		<script src="SceneManager.js?v3"></script>
+         <link href="styles.css" rel="stylesheet" media="screen">
+	</head>
+<body>
+<script>
+
+var container, stats;
+var camera, scene, renderer;
+
+var radius = 300, theta = 0;
+var cubeWidth = 20;
+var frameNumber = 0;
+
+var maxObjects = 9 * 9 * 9;
+var rows = 27;
+var cRows = 9;
+var objects = [];
+
+var theSong = null;
+var sm;     // the scene manager
+
+
+var theScenes = [
+    { start:0, duration:300, scene:SimplePulser('simple pulser', 'beat', 1.5)},
+    { start:10, duration:2, scene:SimpleCylinder('simple cylinder', 10, 0, 0, 2, 0)},
+    { start:20, duration:2, scene:SimpleFlatSquare('flat square', 1, 2, .005)},
+    { start:40, duration:1, scene:SimpleCylinder('simple cylinder', 10, 0, 0, 2, 0)},
+    { start:43, duration:1, scene:SimpleCylinder('simple cylinder', 20, 0, 0, 2, 0)},
+    { start:45, duration:1, scene:SimpleCylinder('simple cylinder', 20, 0, 0, 2, 0)},
+    { start:50, duration:2, scene:SimpleFlatSquare('flat square', 1.2, 1, .005)},
+];
+
+function SimpleFlatSquare(name, scale, dur, delay) {
+    return {
+        'start': function(start, duration) {
+            makeFlatSquare(scale, dur, delay);
+        }
+    }
+}
+
+function SimpleCylinder(name, rows, radius, gap, duration, delay) {
+    return {
+        'start': function(start, duration) {
+            makeCylinder(rows, radius, gap, duration, delay);
+        }
+    }
+}
+
+function SimplePulser(name, quanta, scale) {
+    return {
+        'prebeat': function(q) {
+            var prebeat = sm.prebeat();
+            var idx = q.which % objects.length;
+            var o = objects[idx];
+            console.log('pulse', idx);
+            pulseSingle(o, prebeat, 0);
+        }
+    }
+}
+
+init();
+
+function init() {
+    loadSong();
+    initKeyInput();
+    container = document.createElement( 'div' );
+    document.body.appendChild( container );
+
+    var info = document.createElement( 'div' );
+    info.style.position = 'absolute';
+    info.style.top = '10px';
+    info.style.width = '100%';
+    info.style.textAlign = 'center';
+    info.innerHTML = '<a href="http://threejs.org" target="_blank">three.js</a> ensync demo';
+    container.appendChild( info );
+
+    camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 1, 10000 );
+    scene = new THREE.Scene();
+
+    addStars();
+    addLights();
+    addObjects(maxObjects);
+
+    renderer = new THREE.WebGLRenderer();
+    renderer.setClearColor( 0x000 );
+    renderer.setSize( window.innerWidth, window.innerHeight );
+    renderer.sortObjects = false;
+    container.appendChild(renderer.domElement);
+
+    stats = new Stats();
+    stats.domElement.style.position = 'absolute';
+    stats.domElement.style.top = '0px';
+    container.appendChild( stats.domElement );
+
+    window.addEventListener( 'resize', onWindowResize, false );
+}
+
+function queueCmd(o, tween, onComplete) {
+    function next() {
+        if (o.queue.length > 0) {
+            o.queue[0].start();
+        }
+    }
+
+    tween.onComplete(
+        function(obj) {
+            if (onComplete) {
+                onComplete.call(obj);
+            }
+            o.queue.shift();
+            next();
+        }
+    );
+
+    o.queue.push(tween);
+    if (o.queue.length == 1) {
+        next();
+    }
+}
+
+
+function initKeyInput() {
+    window.addEventListener( 'keydown', function ( event ) {
+        console.log('key', event.which);
+        if (event.which === 39) {   // right arrow
+        }
+        if (event.which === 37) {  // left arrow
+        }
+
+        if (event.which === 38) {  // up arrow
+        }
+        if (event.which === 40) {  // down arrow
+        }
+
+        if (event.which === 80) {  // p
+            sm.start();
+        }
+
+        if (event.which === 83) {  // s
+            sm.stop();
+        }
+
+        if (event.which === 32) {  // space
+            slam(5,2);
+        }
+    });
+
+}
+
+
+function moveTo(o, x, y, z, time, delay) {
+    var curPos = { x: o.position.x, y:o.position.y, z:o.position.z };
+    var newPos = { x: x, y:y, z:z };
+
+    var tween = new TWEEN.Tween(curPos)
+        .to(newPos, time * 1000)
+        .onUpdate( function() {
+            o.position.x = this.x;
+            o.position.y = this.y;
+            o.position.z = this.z;
+        })
+        .easing(TWEEN.Easing.Sinusoidal.InOut)
+        .delay(delay * 1000)
+        .start();
+}
+
+function oMoveTo(o, x, y, z, time, delay) {
+    var curPos = { x: o.position.x, y:o.position.y, z:o.position.z };
+    var newPos = { x: x, y:y, z:z };
+
+    var tween = new TWEEN.Tween(curPos)
+        .to(newPos, time * 1000)
+        .onUpdate( function() {
+            o.position.x = this.x;
+            o.position.y = this.y;
+            o.position.z = this.z;
+        })
+        .easing(TWEEN.Easing.Sinusoidal.InOut)
+        .delay(delay * 1000)
+        .start();
+
+    if (o.rotation.x != 0 || o.rotation.y != 0 || o.rotation.z != 0) {
+        rotateTo(o, 0,0,0, time, delay);
+    }
+}
+
+function rotateTo(o, x, y, z, time, delay) {
+    var curPos = { x: o.rotation.x, y:o.rotation.y, z:o.rotation.z };
+    var newPos = { x: x, y:y, z:z };
+
+    var tween = new TWEEN.Tween(curPos)
+        .to(newPos, time * 1000)
+        .onUpdate( function() {
+            o.rotation.x = this.x;
+            o.rotation.y = this.y;
+            o.rotation.z = this.z;
+        })
+        .easing(TWEEN.Easing.Sinusoidal.InOut)
+        .delay(delay * 1000)
+        .start();
+}
+
+function makeSquare() {
+    function getRow(i) {
+        return Math.floor(i / rows) * 20 - rows / 2 * 20;
+    }
+
+    function getCol(i) {
+        return i % rows * 20 - rows / 2 * 20;
+    }
+
+    objects.forEach(function(o, i) {
+        oMoveTo(o, getRow(i), getCol(i), 0, 1, i);
+    });
+}
+
+function makeFlatSquare(scale, duration, delay) {
+    var cubeScale = cubeWidth * scale;
+    function getRow(i) {
+        return Math.floor(i / rows) * cubeScale - rows / 2 * cubeScale;
+    }
+
+    function getCol(i) {
+        return i % rows * cubeScale - rows / 2 * cubeScale;
+    }
+
+    objects.forEach(function(o, i) {
+        oMoveTo(o, getRow(i), 0, getCol(i), duration, i * delay);
+    });
+}
+
+function makeCircle(radius) {
+    var numObjects = objects.length;
+    if (radius <= 0) {
+        radius = cubeWidth * numObjects / (2 * Math.PI);
+    }
+    objects.forEach(function(o, i) {
+        var angle = 2 * Math.PI * i / numObjects;
+        var x = radius * Math.sin(angle);
+        var y = radius * Math.cos(angle);
+        moveTo(o, x, 0, y, 1000, i);
+        rotateTo(o, 0, angle, 0, 1000, i);
+    });
+}
+
+function makeCylinder(rows, radius, gap, duration, delay) {
+    var numObjects = objects.length;
+    var objectsPerRow = Math.floor(numObjects/rows);
+    if (radius <= 0) {
+        radius = cubeWidth * objectsPerRow / (2 * Math.PI);
+    }
+
+    var height = rows * (cubeWidth + gap);
+    objects.forEach(function(o, i) {
+        var row = Math.floor(i / objectsPerRow);
+        var angle = ((i % objectsPerRow) /objectsPerRow) * 2 * Math.PI;
+        var x = radius * Math.sin(angle);
+        var z = radius * Math.cos(angle);
+        var y = row * (cubeWidth + gap) - height / 2;
+        moveTo(o, x, y, z, duration, i * delay);
+        rotateTo(o, 0, angle, 0, duration, i * delay);
+    });
+}
+
+function slam(wideScale, narrowScale) {
+    function getRow(i, scale) {
+        var cubeScale = cubeWidth * scale;
+        return Math.floor(i / rows) * cubeScale - rows / 2 * cubeScale;
+    }
+
+    function getCol(i, scale) {
+        var cubeScale = cubeWidth * scale;
+        return i % rows * cubeScale - rows / 2 * cubeScale;
+    }
+
+    function slamOne(o, wide, narrow) {
+        var curState = {x:o.position.x, y:o.position.y, z:o.position.z };
+        var finalState = {x:o.position.x, y:o.position.y, z:o.position.z };
+
+        // console.log(o, curState, finalState, wide, narrow);
+        var tweenThere = new TWEEN.Tween(curState)
+            .to(wide, 300)
+            .onUpdate( function() {
+                o.position = this;
+            })
+            .easing(TWEEN.Easing.Elastic.Out)
+
+        var tweenBack = new TWEEN.Tween(curState)
+            .to(narrow, 800)
+            .onUpdate( function() {
+                o.position = this;
+            })
+            .easing(TWEEN.Easing.Quartic.Out)
+        tweenThere.chain(tweenBack);
+        tweenThere.start();
+    }
+
+    objects.forEach(function(o, i) {
+        var wide = {x:getRow(i, wideScale), y:0, z:getCol(i, wideScale) };
+        var narrow = {x:getRow(i, narrowScale), y:0, z:getCol(i, narrowScale) };
+        slamOne(o, wide, narrow);
+    });
+}
+
+function makeCube() {
+    var x = 0, y= 0, z = 0;
+
+    function c2s(i) {
+        return i * cubeWidth - cRows / 2 * cubeWidth;
+    }
+
+    objects.forEach(function(o, i) {
+        oMoveTo(o, c2s(x), c2s(y), c2s(z), 1, i);
+        if (++x >= cRows) {
+            x = 0;
+            if (++y >= cRows) {
+                y = 0;
+                z++;
+            }
+        }
+    });
+}
+
+function wave(height) {
+    objects.forEach(function(o, i) {
+        pulseSingle(o, .08, i * .04);
+    });
+}
+
+
+function pulseSingle(o, period, delay) {
+    var startScale = o.scale.y;
+    var curState = { y:o.scale.y };
+    var newState = { y:o.scale.y * 2.2 };
+    var doneState = { y:o.scale.y };
+    var count;
+
+    var tweenThere = new TWEEN.Tween(curState)
+        .to(newState, 1000 * period / 2)
+        .onUpdate( function() {
+            o.scale.x = this.y;
+            o.scale.y = this.y;
+            o.scale.z = this.y;
+        })
+        .easing(TWEEN.Easing.Elastic.Out);
+
+    var tweenBack = new TWEEN.Tween(newState)
+        .to(doneState, 1000 * period / 2)
+        .onUpdate( function() {
+            o.scale.x = this.y;
+            o.scale.y = this.y;
+            o.scale.z = this.y;
+        })
+        .easing(TWEEN.Easing.Quartic.Out);
+    tweenThere.chain(tweenBack);
+    tweenThere.start();
+}
+
+function randomSlew() {
+    objects.forEach(function(o, i) {
+        var curPos = { x: o.position.x, y:o.position.y, z:o.position.z };
+
+        var newPos = {}
+        newPos.x = Math.random() * 800 - 400;
+        newPos.y = Math.random() * 800 - 400;
+        newPos.z = Math.random() * 800 - 400;
+
+        var tween = new TWEEN.Tween(curPos)
+            .to(newPos, 2000)
+            .onUpdate( function() {
+                o.position.x = this.x;
+                o.position.y = this.y;
+                o.position.z = this.z;
+            })
+            .easing(TWEEN.Easing.Sinusoidal.In)
+            .repeat(1)
+            .yoyo(true)
+            .delay(0 + i * 2)
+            .start();
+    });
+}
+
+
+function loadSong() {
+    ENSync.loadSongFromJSON("burn.js", "burn.mp3",
+        function(song) {
+            theSong = song;
+            var events = {
+                'prebeats':.3
+            }
+            sm = SceneManager(theSong, events);
+            sm.addScenes(theScenes);
+            animate();
+        },
+
+        function(err) {
+            console.log('ERROR ' + err);
+        },
+
+        function(progress) {
+            console.log('loading progress', progress);
+        }
+    );
+}
+
+function addObjects(count) {
+    var geometry = new THREE.CubeGeometry( cubeWidth, cubeWidth, cubeWidth );
+
+    for ( var i = 0; i < count; i ++ ) {
+        var color = Math.random() * 0xffffff;
+        var color2 = Math.random() * 0xffffff;
+        var object = new THREE.Mesh( geometry, new THREE.MeshPhongMaterial( 
+            { color: color, ambient:color2, specular:0x050505, shininess:100 } ) );
+
+        object.position.x = Math.random() * 800 - 400;
+        object.position.y = Math.random() * 800 - 400;
+        object.position.z = Math.random() * 800 - 400;
+
+        object.queue = [];
+        scene.add( object );
+        objects.push(object);
+    }
+}
+
+function addLights() {
+    var light = new THREE.PointLight( 0xff00ff, .5, 0 );
+    light.position.set( 200, 200, 200 ).normalize();
+    scene.add( light );
+
+    var light2 = new THREE.PointLight( 0xffffff, 1, 0 );
+    light2.position.set( -200, -200, -200 ).normalize();
+    scene.add( light2 );
+
+    var light3 = new THREE.DirectionalLight( 0xffffff );
+    light3.position.set( -1, -1, -1 ).normalize();
+    scene.add( light3 );
+
+    var light4 = new THREE.DirectionalLight( 0xffffff, 2 );
+    light4.position.set( 1, 1, 1 ).normalize();
+    scene.add( light4 );
+}
+
+function addStars() {
+    var i, r = 200, starsGeometry = [ new THREE.Geometry(), new THREE.Geometry() ];
+
+    for ( i = 0; i < 250; i ++ ) {
+
+        var vertex = new THREE.Vector3();
+        vertex.x = Math.random() * 2 - 1;
+        vertex.y = Math.random() * 2 - 1;
+        vertex.z = Math.random() * 2 - 1;
+        vertex.multiplyScalar( r );
+
+        starsGeometry[ 0 ].vertices.push( vertex );
+
+    }
+
+    for ( i = 0; i < 1500; i ++ ) {
+
+        var vertex = new THREE.Vector3();
+        vertex.x = Math.random() * 2 - 1;
+        vertex.y = Math.random() * 2 - 1;
+        vertex.z = Math.random() * 2 - 1;
+        vertex.multiplyScalar( r );
+
+        starsGeometry[ 1 ].vertices.push( vertex );
+
+    }
+
+    var stars;
+    var starsMaterials = [
+        new THREE.ParticleSystemMaterial( { color: 0xffffff, size: 2, sizeAttenuation: false } ),
+        new THREE.ParticleSystemMaterial( { color: 0xeeeeee, size: 1, sizeAttenuation: false } ),
+        new THREE.ParticleSystemMaterial( { color: 0xcccccc, size: 2, sizeAttenuation: false } ),
+        new THREE.ParticleSystemMaterial( { color: 0xdddddd, size: 1, sizeAttenuation: false } ),
+        new THREE.ParticleSystemMaterial( { color: 0xbbbbbb, size: 2, sizeAttenuation: false } ),
+        new THREE.ParticleSystemMaterial( { color: 0x1a1a1a, size: 1, sizeAttenuation: false } )
+    ];
+
+    for ( i = 10; i < 30; i ++ ) {
+
+        stars = new THREE.ParticleSystem( starsGeometry[ i % 2 ], starsMaterials[ i % 6 ] );
+
+        stars.rotation.x = Math.random() * 6;
+        stars.rotation.y = Math.random() * 6;
+        stars.rotation.z = Math.random() * 6;
+
+        s = i * 10;
+        stars.scale.set( s, s, s );
+
+        stars.matrixAutoUpdate = false;
+        stars.updateMatrix();
+
+        scene.add( stars );
+
+    }
+}
+
+function onWindowResize() {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize( window.innerWidth, window.innerHeight );
+}
+
+//
+
+function animate() {
+    requestAnimationFrame( animate );
+    TWEEN.update();
+    sm.update();
+    render();
+    stats.update();
+}
+
+function render() {
+    theta += 0.3;
+    frameNumber += 1;
+    camera.position.x = radius * Math.sin( THREE.Math.degToRad( theta ) );
+    camera.position.y = radius * Math.sin( THREE.Math.degToRad( theta ) );
+    camera.position.z = radius * Math.cos( THREE.Math.degToRad( theta ) );
+    camera.lookAt( scene.position );
+    renderer.render( scene, camera );
+}
+
+</script>
+</body>
+</html>
