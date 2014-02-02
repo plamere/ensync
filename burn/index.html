@@ -17,10 +17,11 @@
 
 var container, stats;
 var camera, scene, renderer;
-var radius = 300, theta = 0;
+var radius = 100, theta = 0;
 var cubeWidth = 20;
 
 var maxSoldiers = 9 * 9 * 9;
+var cameraRotateSpeed = 0;
 var rows = 27;
 var cRows = 9;
 var prebeat = .3;
@@ -29,33 +30,37 @@ var curScaleAxis = 'y';
 
 var theSong = null;
 var sm;     // the scene manager
+var ellieG;
+var soldierG;
 
 var theScenes = [
     { start:0, duration:300, scene:ElliePulser('simple pulser')},
-    { start:0, duration:300, scene:SimplePulser('simple pulser', 'prebeat', prebeat, 1.5)},
-    { start:0, duration:300, scene:SimplePulser('simple pulser', 'presegment', preseg, 1.5)},
+//    { start:0, duration:300, scene:SimplePulser('simple pulser', 'prebeat', prebeat, 1.5)},
+//    { start:0, duration:300, scene:SimplePulser('simple pulser', 'presegment', preseg, 1.5)},
 
     { start:0, duration:11, scene:introScene()},
 
-    { start:11, duration:22, scene:verse(0)},
+    { start:11, duration:22, scene:verse(0)},   // 10 x 10
     { start:33, duration:16, scene:pre(0)},
+
     { start:49, duration:6, scene:chorus(0)},
     { start:55, duration:11, scene:burn(0)},
 
-    { start:66, duration:22, scene:verse(1)},
+    { start:66, duration:22, scene:verse(1)},   // 20 * 20
     { start:88, duration:16, scene:pre(1)},
     { start:104, duration:6, scene:chorus(1)},
     { start:110, duration:10, scene:burn(1)},
 
-    { start:120, duration:12, scene:pre(2)},
+    { start:120, duration:12, scene:pre(2)},    // 25 * 25
     { start:132, duration:11, scene:theBreak()},
     { start:143, duration:12, scene:theBuild()},
-    { start:165, duration:12, scene:pre(2)},
+
+    { start:165, duration:12, scene:pre(3)},    // 30 * 30
     { start:182, duration:4.7, scene:chorus(2)},
     { start:186.7, duration:2.3, scene:allStop()},
     { start:189, duration:11, scene:burn(2)},
 
-    { start:200, duration:16, scene:pre(3)},
+    { start:200, duration:16, scene:pre(4)},
     { start:216, duration:6, scene:chorus(3)},
     { start:222, duration:1, scene:finalBurn()},
     { start:223, duration:4, scene:fade()},
@@ -66,6 +71,24 @@ function introScene() {
     return {
         'start': function(start, duration) {
             console.log('introScene', start, duration);
+            addSoldiers(100);
+            cameraRotateSpeed = .10;
+            moveCameraRadius(300, 2,  0);
+            makeCircle(ellieG.children, cubeWidth * 0, 6.2, 2, 2);
+            waitFor(4,
+                function() {
+                    var time = 1;
+                    makeFlatSquare(soldierG.children, 1.2, time, (duration - 4 - time) / soldierG.children.length);
+                }
+            );
+        },
+
+        'prebeat' : function(q) {
+            if (soldierG.children.length > 0) {
+                var idx = q.which % soldierG.children.length;
+                var o = soldierG.children[idx];
+                pulseSingle(o, 4, 1.5);
+            }
         }
     }
 }
@@ -73,7 +96,16 @@ function introScene() {
 function verse(level) {
     return {
         'start': function(start, duration) {
+            cameraRotateSpeed = -.2;
             console.log('verse', level, start, duration);
+        },
+
+        'presegment' : function(q) {
+            if (soldierG.children.length > 0) {
+                var idx = q.which % soldierG.children.length;
+                var o = soldierG.children[idx];
+                peakMeter(soldierG.children, q.volume, 8, q.duration);
+            }
         }
     }
 }
@@ -81,7 +113,17 @@ function verse(level) {
 function pre(level) {
     return {
         'start': function(start, duration) {
+            cameraRotateSpeed =  cameraRotateSpeed * -1.5;
             console.log('pre', level, start, duration);
+            if (level == 0) {
+                addSoldiers(15 * 15);   // total 400
+                moveTo(ellieG, 0, cubeWidth * 3 * 3, 0, 3, 0);
+            } else if (level == 1) {
+                addSoldiers(25 * 25); // total 900
+            } else if (level == 2) {
+                addSoldiers(35 * 35); // total 900
+            }
+            makeFlatSquare(soldierG.children, 1.2, 1, (duration - 1) / soldierG.children.length);
         }
     }
 }
@@ -162,14 +204,23 @@ function SimpleCylinder(name, rows, radius, gap, duration, delay) {
 
 function SimplePulser(name, quanta, time, scale) {
     var pulseFunc = function(q) {
-            var idx = q.which % soldierG.children.length;
-            var o = soldierG.children[idx];
-            pulseSingle(o, time, 0);
+            if (soldierG.children.length > 0) {
+                var idx = q.which % soldierG.children.length;
+                var o = soldierG.children[idx];
+                pulseSingle(o, 4, time);
+            }
         };
 
     var scene = {};
     scene[quanta] = pulseFunc;
     return scene;
+}
+
+
+function peakMeter(objects, value, range, time) {
+    _.each(objects, function(o, i) {
+        pulseSingle(o, o.meterScale * value * range, time);
+    });
 }
 
 function EllieRotator(name, rows, radius, gap, duration, delay) {
@@ -211,7 +262,14 @@ function init() {
 
     addStars();
     addLights();
-    addObjects(maxSoldiers);
+
+    initMaterials();
+
+    ellieG = new THREE.Object3D();
+    soldierG = new THREE.Object3D();
+    scene.add(ellieG);
+    scene.add(soldierG);
+    addEllies();
 
     renderer = new THREE.WebGLRenderer();
     renderer.setClearColor( 0x000 );
@@ -243,6 +301,10 @@ function queueCmd(o, tween, onComplete) {
             next();
         }
     );
+
+    if (o.queue === undefined) {
+        o.queue = [];
+    }
 
     o.queue.push(tween);
     if (o.queue.length == 1) {
@@ -279,6 +341,20 @@ function initKeyInput() {
 
 }
 
+
+function moveCameraRadius(newRadius, time, delay) {
+    var curPos = { val: radius };
+    var newPos = { val: newRadius };
+
+    var tween = new TWEEN.Tween(curPos)
+        .to(newPos, time * 1000)
+        .onUpdate( function() {
+            radius = this.val;
+        })
+        .easing(TWEEN.Easing.Sinusoidal.InOut)
+        .delay(delay * 1000)
+        .start();
+}
 
 function moveTo(o, x, y, z, time, delay) {
     var curPos = { x: o.position.x, y:o.position.y, z:o.position.z };
@@ -346,8 +422,9 @@ function makeSquare() {
     });
 }
 
-function makeFlatSquare(scale, duration, delay) {
+function makeFlatSquare(objects, scale, duration, delay) {
     var cubeScale = cubeWidth * scale;
+    var rows = Math.floor(Math.sqrt(objects.length));
     function getRow(i) {
         return Math.floor(i / rows) * cubeScale - rows / 2 * cubeScale;
     }
@@ -356,12 +433,19 @@ function makeFlatSquare(scale, duration, delay) {
         return i % rows * cubeScale - rows / 2 * cubeScale;
     }
 
-    soldierG.children.forEach(function(o, i) {
+    objects.forEach(function(o, i) {
         oMoveTo(o, getRow(i), 0, getCol(i), duration, i * delay);
     });
 }
 
-function makeCircle(objects, height, radiusFactor) {
+function waitFor(delay, func) {
+    var curState = {x:0 };
+    var finalState = {x:1};
+    var tween = new TWEEN.Tween(curState)
+        .to(finalState, delay * 1000).onComplete(func).start();
+}
+
+function makeCircle(objects, height, radiusFactor, time, delay) {
     var numObjects = objects.length;
     var radius = cubeWidth * numObjects / (2 * Math.PI);
     radius *= radiusFactor;
@@ -370,8 +454,8 @@ function makeCircle(objects, height, radiusFactor) {
         var angle = 2 * Math.PI * i / numObjects;
         var x = radius * Math.sin(angle);
         var y = radius * Math.cos(angle);
-        moveTo(o, x, height, y, 1, 0);
-        rotateTo(o, 0, angle, 0, 1, 0);
+        moveTo(o, x, height, y, time, delay);
+        rotateTo(o, 0, angle, 0, time, delay);
     });
 }
 
@@ -460,25 +544,25 @@ function wave(height) {
 }
 
 
-function pulseSingle(o, period, delay) {
-    var scale = 4;
+function pulseSingle(o, scale, period) {
     var curState = { val:1 };
-    var newState = { val: scale };
+    var newState = { val: 1 + scale };
     var doneState = { val:1};
 
     var tweenThere = new TWEEN.Tween(curState)
         .to(newState, 1000 * period / 2)
         .onUpdate( function() {
             o.scale[curScaleAxis] = this.val;
-        })
-        .easing(TWEEN.Easing.Elastic.Out);
+        //}).easing(TWEEN.Easing.Elastic.Out);
+        }).easing(TWEEN.Easing.Exponential.Out);
 
     var tweenBack = new TWEEN.Tween(newState)
         .to(doneState, 1000 * period / 2)
         .onUpdate( function() {
             o.scale[curScaleAxis] = this.val;
         })
-        .easing(TWEEN.Easing.Quartic.Out)
+        //.easing(TWEEN.Easing.Quartic.Out)
+        .easing(TWEEN.Easing.Linear.None)
         .onComplete(function() {
             o.scale = {x:1, y:1, z:1 };
         });
@@ -547,13 +631,12 @@ function loadSong() {
     );
 }
 
-function addObjects(maxSoldiers) {
-    var geometry = new THREE.CubeGeometry( cubeWidth * 3, cubeWidth *3, cubeWidth * 3);
+function addEllies() {
+    var cw = cubeWidth * 3; 
+    var cwp = cubeWidth * 3 + 10; 
+    var geometry = new THREE.CubeGeometry( cw, cw, cw);
     var imageCount = 11;
 
-    // add ellie objects
-
-   ellieG = new THREE.Object3D();
     for (var i = 0; i < imageCount; i++) {
        var texture =  THREE.ImageUtils.loadTexture('images/image' + i + '.jpg');
        texture.flipY = true;
@@ -561,26 +644,58 @@ function addObjects(maxSoldiers) {
            map: texture
        });
        var object = new THREE.Mesh( geometry, material);
+       object.position.x = cwp * i - cwp * imageCount / 2 ;
+       object.position.y = 0
+       object.position.z = 0;
        ellieG.add(object);
-       scene.add(ellieG);
     }
-    makeCircle(ellieG.children, cubeWidth * 6, 6.2);
+    // makeCircle(ellieG.children, cubeWidth * 6, 6.2);
+}
 
-   var geometry = new THREE.CubeGeometry( cubeWidth, cubeWidth, cubeWidth );
-   soldierG = new THREE.Object3D();
-    for ( var i = 0; i < maxSoldiers; i ++ ) {
+
+var maxMaterials = 32;
+var materials = [];
+
+function initMaterials() {
+    for ( var i = 0; i < maxMaterials; i ++ ) {
         var color = Math.random() * 0xffffff;
         var color2 = Math.random() * 0xffffff;
-        var soldier = new THREE.Mesh( geometry, new THREE.MeshPhongMaterial( 
-                { color: color, ambient:color2, specular:0x050505, shininess:100 } ) );
-
-        soldier.position.x = Math.random() * 800 - 400;
-        soldier.position.y = Math.random() * 800 - 400;
-        soldier.position.z = Math.random() * 800 - 400;
-        soldierG.add(soldier);
-        scene.add(soldierG);
+        var material = new THREE.MeshPhongMaterial( 
+            { color: color, ambient:color2, specular:0x050505, shininess:100 } );
+        materials.push(material);
     }
 }
+
+function addSoldiers(total) {
+   var count = total - soldierG.children.length;
+   var geometry = new THREE.CubeGeometry( cubeWidth, cubeWidth, cubeWidth );
+    for ( var i = 0; i < count; i ++ ) {
+        var soldier = new THREE.Mesh( geometry, materials[i % maxMaterials]);
+        soldier.position.x = Math.random() * 800 - 400;
+        soldier.position.y = 800;
+        soldier.position.z = Math.random() * 800 - 400;
+        soldierG.add(soldier);
+    }
+    calcMeterScale();
+}
+
+
+function calcMeterScale() {
+    // calculate meter scale
+    var rows = Math.floor(Math.sqrt(soldierG.children.length));
+    var center = rows / 2;
+    var maxDistance = Math.sqrt(center * center + center * center);
+    _.each(soldierG.children, function(o, i) {
+        var r = i % rows;
+        var c = Math.floor(i / rows);
+        var dx = center - r;
+        var dy = center - c;
+        var distance = Math.sqrt(dx * dx + dy * dy);
+        o.meterScale = 1 - distance / maxDistance;
+        o.meterScale = o.meterScale * o.meterScale;
+    });
+}
+
 
 function addLights() {
     var light = new THREE.PointLight( 0xff00ff, .5, 0 );
@@ -673,7 +788,9 @@ function animate() {
 }
 
 function render() {
-    theta += 0.3;
+    if (theSong.isPlaying()) {
+        theta += cameraRotateSpeed;
+    }
     camera.position.x = radius * Math.sin( THREE.Math.degToRad( theta ) );
     camera.position.y = radius * Math.sin( THREE.Math.degToRad( theta ) );
     camera.position.z = radius * Math.cos( THREE.Math.degToRad( theta ) );
