@@ -138,7 +138,7 @@ function pre(level) {
                 if (level == 4) {
                     makeHeart(soldierG.children, .5, 1, (duration -1) / soldierG.children.length);
                 } else if (level == 3) {
-                    makeSpiral(soldierG.children, 300, 3, 1, (duration - 1) / soldierG.children.length);
+                    makeSpiral(soldierG.children, 100, 20, 1, (duration - 3) / soldierG.children.length);
                 } else {
                     makeFlatSquare(soldierG.children, 1.2, 1, (duration - 1) / soldierG.children.length);
                 }
@@ -150,8 +150,11 @@ function pre(level) {
 function chorus(level) {
     return {
         'start': function(start, duration) {
-            console.log('chorus', level, start, duration);
-            makeHeart(soldierG.children, .5, 1, 0);
+            if (level != 3) {
+                console.log('chorus', level, start, duration);
+                //makeHeart(soldierG.children, .5, 1, 0);
+                makeVSpiral(soldierG.children, 200, 20, 1, (duration - 3) / soldierG.children.length);
+            }
         }
     }
 }
@@ -180,15 +183,30 @@ function theBreak(level) {
     return {
         'start': function(start, duration) {
             console.log('theBreak', level, start, duration);
+            randomSnow(soldierG.children, 1200, duration * 2, 2/soldierG.children.length, 1);
         }
     }
 }
 
 function theBuild(level) {
+    var pulse = false;
     return {
         'start': function(start, duration) {
             console.log('theBuild', level, start, duration);
             makeCylinderPattern(10, 1, 0, 4, 0);
+            randomSnow(soldierG.children, 0, duration - 3, 2/soldierG.children.length, 0);
+            waitFor(duration - 2.5, function() {
+                makeCylinder(60, 1, 2, 2, 0);
+                pulse = true;
+            });
+        },
+
+        'presegment' : function(q) {
+            if (soldierG.children.length > 0 && pulse) {
+                var idx = q.which % soldierG.children.length;
+                var o = soldierG.children[idx];
+                peakMeter(soldierG.children, q.volume, 8, q.duration);
+            }
         }
     }
 }
@@ -214,9 +232,11 @@ function fade() {
     return {
         'start': function(start, duration) {
             console.log('fade', start, duration);
+            cameraRotateSpeed = .10;
         },
 
         'end' : function() {
+            cameraRotateSpeed = 0
             theSong.stop();
         }
     }
@@ -558,14 +578,48 @@ function makeSpiral(objects, initialRadius, padding, time, delay) {
     var cw = cubeWidth + padding;
     var angle = 0;
     objects.forEach(function(o, i) {
-        var circumference = 2 * Math.PI * 2 * radius;
+        var circumference = 2 * Math.PI * 2 * (radius - cw);
         var numBlocks = circumference / cw;
         var angleDelta = 2 * Math.PI / numBlocks;
         var x = radius * Math.sin(angle);
         var y = radius * Math.cos(angle);
         angle += angleDelta;
-        radius -= cubeWidth / numBlocks;
+        radius += cubeWidth / numBlocks;
         moveTo(o, x, -40, y, time, i * delay);
+        rotateTo(o, 0, angle, 0, time, i* delay);
+    });
+}
+
+function randomSnow(objects, height, time, delay, fwd) {
+    var list = _.clone(objects);
+    list = _.shuffle(list);
+    console.log('rand snow', time, delay, fwd);
+    _.each(list, function(o, i) {
+        //var time = Math.random() * 2 + 2;
+        var x = Math.random() * 300 - 200;
+        var y = Math.random() * 400 - 200;
+        if (i % 2 == fwd) {
+            y += height
+        } else {
+            y -= height
+        }
+        moveTo(o, x, y, 0, time, i * delay);
+    });
+}
+
+function makeVSpiral(objects, initialRadius, padding, time, delay) {
+    var radius = initialRadius;
+    var cw = cubeWidth + padding;
+    var angle = 0;
+    objects.forEach(function(o, i) {
+        var circumference = 2 * Math.PI * 2 * (radius - cw);
+        var numBlocks = circumference / cw;
+        var angleDelta = 2 * Math.PI / numBlocks;
+        var x = radius * Math.sin(angle);
+        var y = radius * Math.cos(angle);
+        angle += angleDelta;
+        radius += cubeWidth / numBlocks;
+        moveTo(o, x, y, 0, time, i * delay);
         rotateTo(o, 0, angle, 0, time, i* delay);
     });
 }
@@ -700,6 +754,7 @@ function makeHeart(objs, scale, duration, delay) {
         var y = 13 * Math.cos(angle) - 5 * Math.cos(2 * angle) - 2 * Math.cos(3*angle) - Math.cos(4 * angle);
         var z = Math.floor(o.which / hearts) - cRows / 2;
         oMoveTo(o, c2s(x), c2s(y), c2s(z), duration, o.which * delay);
+        rotateTo(o, 0, 0, angle, duration, o.which * delay);
     });
 }
 
