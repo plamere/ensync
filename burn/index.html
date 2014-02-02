@@ -57,8 +57,8 @@ var theScenes = [
 
     { start:165, duration:12, scene:pre(3)},    // 30 * 30
     { start:182, duration:4.7, scene:chorus(2)},
-    { start:186.7, duration:2.3, scene:allStop()},
-    { start:189, duration:11, scene:burn(2)},
+    { start:186.0, duration:2.3, scene:allStop()},
+    { start:188.5, duration:11, scene:burn(2)},
 
     { start:200, duration:16, scene:pre(4)},
     { start:216, duration:6, scene:chorus(3)},
@@ -87,7 +87,7 @@ function introScene() {
             if (soldierG.children.length > 0) {
                 var idx = q.which % soldierG.children.length;
                 var o = soldierG.children[idx];
-                pulseSingle(o, 4, 1.5);
+                fastPulseSingle(o, 4, q.duration / 2);
             }
         }
     }
@@ -98,6 +98,12 @@ function verse(level) {
         'start': function(start, duration) {
             cameraRotateSpeed = -.2;
             console.log('verse', level, start, duration);
+            waitFor(8, function() {
+                makeCylinder(10, 1, 0, 4, 0);
+                waitFor(4, function() {
+                    makeCylinder(3, 1.4, 0, 4, 0);
+                });
+            });
         },
 
         'presegment' : function(q) {
@@ -115,15 +121,28 @@ function pre(level) {
         'start': function(start, duration) {
             cameraRotateSpeed =  cameraRotateSpeed * -1.5;
             console.log('pre', level, start, duration);
-            if (level == 0) {
-                addSoldiers(15 * 15);   // total 400
-                moveTo(ellieG, 0, cubeWidth * 3 * 3, 0, 3, 0);
-            } else if (level == 1) {
-                addSoldiers(25 * 25); // total 900
-            } else if (level == 2) {
-                addSoldiers(35 * 35); // total 900
-            }
-            makeFlatSquare(soldierG.children, 1.2, 1, (duration - 1) / soldierG.children.length);
+            makeSquareOutline(soldierG.children, soldierG.children.length / 4 * 0.8 * cubeWidth, 1, 0);
+            waitFor(1, function() {
+                if (level == 0) {
+                    addSoldiers(15 * 15);   // total 400
+                    moveTo(ellieG, 0, cubeWidth * 3 * 3, 0, 3, 0);
+                } else if (level == 1) {
+                    addSoldiers(25 * 25); // total 625
+                } else if (level == 2) {
+                    addSoldiers(30 * 30); // total 900
+                }
+                var scale = 1.2;
+                scaleObject(soldierG, scale, duration, 0);
+                moveCameraRadius(radius * scale * 1.1,  duration - 1, 0);
+
+                if (level == 4) {
+                    makeHeart(soldierG.children, .5, 1, (duration -1) / soldierG.children.length);
+                } else if (level == 3) {
+                    makeSpiral(soldierG.children, 300, 3, 1, (duration - 1) / soldierG.children.length);
+                } else {
+                    makeFlatSquare(soldierG.children, 1.2, 1, (duration - 1) / soldierG.children.length);
+                }
+            });
         }
     }
 }
@@ -132,6 +151,7 @@ function chorus(level) {
     return {
         'start': function(start, duration) {
             console.log('chorus', level, start, duration);
+            makeHeart(soldierG.children, .5, 1, 0);
         }
     }
 }
@@ -140,6 +160,18 @@ function burn(level) {
     return {
         'start': function(start, duration) {
             console.log('burn', level, start, duration);
+            makeFlatSquare(soldierG.children, 1.2, .3, 0);
+        },
+
+        'presegment' : function(q) {
+            if (soldierG.children.length > 0) {
+                var idx = q.which % soldierG.children.length;
+                var o = soldierG.children[idx];
+                peakMeter(soldierG.children, q.volume, 12, q.duration);
+                if (q.volume > .90) {
+                    slam(5, 2, q.duration);
+                }
+            }
         }
     }
 }
@@ -156,6 +188,7 @@ function theBuild(level) {
     return {
         'start': function(start, duration) {
             console.log('theBuild', level, start, duration);
+            makeCylinderPattern(10, 1, 0, 4, 0);
         }
     }
 }
@@ -164,6 +197,7 @@ function allStop(level) {
     return {
         'start': function(start, duration) {
             console.log('allStop', level, start, duration);
+            makeCube(soldierG.children, .3, 0);
         }
     }
 }
@@ -180,6 +214,10 @@ function fade() {
     return {
         'start': function(start, duration) {
             console.log('fade', start, duration);
+        },
+
+        'end' : function() {
+            theSong.stop();
         }
     }
 }
@@ -197,7 +235,7 @@ function SimpleCylinder(name, rows, radius, gap, duration, delay) {
     return {
         'start': function(start, duration) {
             curScaleAxis = 'z';
-            makeCylinder(rows, radius, gap, duration, delay);
+            makeCylinder(rows, 1, gap, duration, delay);
         }
     }
 }
@@ -227,7 +265,7 @@ function EllieRotator(name, rows, radius, gap, duration, delay) {
     return {
         'start': function(start, duration) {
             curScaleAxis = 'z';
-            makeCylinder(rows, radius, gap, duration, delay);
+            makeCylinder(rows, 1, gap, duration, delay);
         }
     }
 }
@@ -335,7 +373,7 @@ function initKeyInput() {
         }
 
         if (event.which === 32) {  // space
-            slam(5,2);
+            slam(5,2, .5);
         }
     });
 
@@ -358,7 +396,7 @@ function moveCameraRadius(newRadius, time, delay) {
 
 function moveTo(o, x, y, z, time, delay) {
     var curPos = { x: o.position.x, y:o.position.y, z:o.position.z };
-    var newPos = { x: x, y:y, z:z };
+    var newPos = { x: x + dither(), y:y + dither(), z:z + dither() };
 
     var tween = new TWEEN.Tween(curPos)
         .to(newPos, time * 1000)
@@ -370,6 +408,10 @@ function moveTo(o, x, y, z, time, delay) {
         .easing(TWEEN.Easing.Sinusoidal.InOut)
         .delay(delay * 1000)
         .start();
+}
+
+function dither() {
+    return Math.random() / 10;
 }
 
 function oMoveTo(o, x, y, z, time, delay) {
@@ -434,7 +476,59 @@ function makeFlatSquare(objects, scale, duration, delay) {
     }
 
     objects.forEach(function(o, i) {
-        oMoveTo(o, getRow(i), 0, getCol(i), duration, i * delay);
+        oMoveTo(o, getRow(o.which), 0, getCol(o.which), duration, o.which * delay);
+    });
+}
+
+
+function scaleObject(object, scale, duration, delay) {
+    var curState = {x:object.scale.x, y:object.scale.y, z:object.scale.z };
+    var newState = {x:object.scale.x * scale, y:object.scale.y * scale, z:object.scale.z * scale };
+    var tween = new TWEEN.Tween(curState)
+        .to(newState, duration * 1000)
+        .onUpdate( function() {
+            object.scale = this;
+        })
+        .delay(delay * 1000)
+        .easing(TWEEN.Easing.Linear.None)
+        .start();
+}
+
+function makeSquareOutline(objects, width, duration, delay) {
+    var sideLength = Math.floor(objects.length / 4);
+
+    function getRow(i) {
+        var side = Math.floor(i % 4);
+        var row = 0;
+        if (side == 1) {
+            row = width;
+        } else if (side == 3) {
+            row = -width;
+        } else {
+            var which = i % sideLength;
+            row = -width + which/sideLength * width * 2;
+        }
+        return row;
+    }
+
+    function getCol(i) {
+        var side = Math.floor(i % 4);
+        var col = 0;
+        if (side == 0) {
+            col = width;
+        } else if (side == 2) {
+            col = -width;
+        } else {
+            var which = i % sideLength;
+            col = -width + which/sideLength * width * 2;
+        }
+        return col;
+    }
+
+    objects.forEach(function(o, i) {
+        var row = getRow(o.which);
+        var col = getCol(o.which);
+        oMoveTo(o, row, 0, col, duration, o.which * delay);
     });
 }
 
@@ -459,7 +553,54 @@ function makeCircle(objects, height, radiusFactor, time, delay) {
     });
 }
 
-function makeCylinder(rows, radius, gap, duration, delay) {
+function makeSpiral(objects, initialRadius, padding, time, delay) {
+    var radius = initialRadius;
+    var cw = cubeWidth + padding;
+    var angle = 0;
+    objects.forEach(function(o, i) {
+        var circumference = 2 * Math.PI * 2 * radius;
+        var numBlocks = circumference / cw;
+        var angleDelta = 2 * Math.PI / numBlocks;
+        var x = radius * Math.sin(angle);
+        var y = radius * Math.cos(angle);
+        angle += angleDelta;
+        radius -= cubeWidth / numBlocks;
+        moveTo(o, x, -40, y, time, i * delay);
+        rotateTo(o, 0, angle, 0, time, i* delay);
+    });
+}
+
+function makeSphere(objects, radiusFactor, time, delay) {
+    var numObjects = objects.length;
+    var radius = Math.pow(numObjects / Math.PI, 1/3);
+    radius *= radiusFactor;
+
+    objects.forEach(function(o, i) {
+        var angle = 2 * Math.PI * i / numObjects;
+        var x = radius * Math.sin(angle);
+        var y = radius * Math.cos(angle);
+        moveTo(o, x, height, y, time, delay);
+        rotateTo(o, 0, angle, 0, time, delay);
+    });
+}
+
+function makeCylinder(rows, scale, gap, duration, delay) {
+    var numObjects = soldierG.children.length;
+    var objectsPerRow = Math.floor(numObjects/rows);
+    var radius = cubeWidth * objectsPerRow / (2 * Math.PI) * scale;
+    var height = rows * (cubeWidth + gap);
+    soldierG.children.forEach(function(o, i) {
+        var row = Math.floor(i / objectsPerRow);
+        var angle = ((i % objectsPerRow) /objectsPerRow) * 2 * Math.PI;
+        var x = radius * Math.sin(angle);
+        var z = radius * Math.cos(angle);
+        var y = row * (cubeWidth + gap) - height / 2;
+        moveTo(o, x, y, z, duration, i * delay);
+        rotateTo(o, 0, angle, 0, duration, i * delay);
+    });
+}
+
+function makeCylinderPattern(rows, radius, gap, duration, delay) {
     var numObjects = soldierG.children.length;
     var objectsPerRow = Math.floor(numObjects/rows);
     if (radius <= 0) {
@@ -473,12 +614,14 @@ function makeCylinder(rows, radius, gap, duration, delay) {
         var x = radius * Math.sin(angle);
         var z = radius * Math.cos(angle);
         var y = row * (cubeWidth + gap) - height / 2;
-        moveTo(o, x, y, z, duration, i * delay);
+        // moveTo(o, x, y, z, duration, i * delay);
         rotateTo(o, 0, angle, 0, duration, i * delay);
     });
 }
 
-function slam(wideScale, narrowScale) {
+function slam(wideScale, narrowScale, time) {
+    var rows = Math.sqrt(soldierG.children.length);
+
     function getRow(i, scale) {
         var cubeScale = cubeWidth * scale;
         return Math.floor(i / rows) * cubeScale - rows / 2 * cubeScale;
@@ -495,14 +638,14 @@ function slam(wideScale, narrowScale) {
 
         // console.log(o, curState, finalState, wide, narrow);
         var tweenThere = new TWEEN.Tween(curState)
-            .to(wide, 300)
+            .to(wide, time / 4 * 1000)
             .onUpdate( function() {
                 o.position = this;
             })
             .easing(TWEEN.Easing.Elastic.Out)
 
         var tweenBack = new TWEEN.Tween(curState)
-            .to(narrow, 800)
+            .to(narrow, time * 3 / 4 * 1000)
             .onUpdate( function() {
                 o.position = this;
             })
@@ -512,21 +655,24 @@ function slam(wideScale, narrowScale) {
     }
 
     soldierG.children.forEach(function(o, i) {
-        var wide = {x:getRow(i, wideScale), y:0, z:getCol(i, wideScale) };
-        var narrow = {x:getRow(i, narrowScale), y:0, z:getCol(i, narrowScale) };
+        var high = cubeWidth * 2;
+        var low = cubeWidth * 2;
+        var wide = {x:getRow(o.which, wideScale), y: o.which % 2 === 1 ? high : low, z:getCol(o.which, wideScale) };
+        var narrow = {x:getRow(o.which, narrowScale), y:0, z:getCol(o.which, narrowScale) };
         slamOne(o, wide, narrow);
     });
 }
 
-function makeCube() {
+function makeCube(objs, duration, delay) {
     var x = 0, y= 0, z = 0;
+    var cRows = Math.round(Math.pow(objs.length, 1/3));
 
     function c2s(i) {
         return i * cubeWidth - cRows / 2 * cubeWidth;
     }
 
-    soldierG.children.forEach(function(o, i) {
-        oMoveTo(o, c2s(x), c2s(y), c2s(z), 1, i);
+    objs.forEach(function(o, i) {
+        oMoveTo(o, c2s(x), c2s(y), c2s(z), duration, delay);
         if (++x >= cRows) {
             x = 0;
             if (++y >= cRows) {
@@ -536,6 +682,50 @@ function makeCube() {
         }
     });
 }
+
+function makeHeart(objs, scale, duration, delay) {
+    var x = 0, y= 0, z = 0;
+    var hearts = 100;
+    var cRows = Math.round(objs.length / hearts);
+
+    function c2s(i) {
+        return i * cubeWidth * scale + Math.random();
+    }
+
+    objs.forEach(function(o, i) {
+        var angle = (o.which % hearts) / hearts * Math.PI * 2;
+        var sinx = Math.sin(angle);
+        var cosx = Math.cos(angle);
+        var x = 16 * sinx * sinx * sinx;
+        var y = 13 * Math.cos(angle) - 5 * Math.cos(2 * angle) - 2 * Math.cos(3*angle) - Math.cos(4 * angle);
+        var z = Math.floor(o.which / hearts) - cRows / 2;
+        oMoveTo(o, c2s(x), c2s(y), c2s(z), duration, o.which * delay);
+    });
+}
+
+/*
+function makeSpiral(objs, scale, duration, delay) {
+    var x = 0, y= 0, z = 0;
+    var cRows = Math.round(objs.length / hearts);
+    var objectsPerRow = obs.length;
+    var radius = cubeWidth;
+
+    function c2s(i) {
+        return i * cubeWidth * scale + Math.random();
+    }
+
+    soldierG.children.forEach(function(o, i) {
+        var angle = ((o.which % objectsPerRow) /objectsPerRow) * 2 * Math.PI;
+        var x = radius * Math.sin(angle);
+        var z = radius * Math.cos(angle);
+        var y = row * (cubeWidth + gap) - height / 2;
+        moveTo(o, x, y, z, duration, i * delay);
+        rotateTo(o, 0, angle, 0, duration, i * delay);
+    });
+}
+*/
+
+
 
 function wave(height) {
     soldierG.children.forEach(function(o, i) {
@@ -563,6 +753,30 @@ function pulseSingle(o, scale, period) {
         })
         //.easing(TWEEN.Easing.Quartic.Out)
         .easing(TWEEN.Easing.Linear.None)
+        .onComplete(function() {
+            o.scale = {x:1, y:1, z:1 };
+        });
+    tweenThere.chain(tweenBack);
+    tweenThere.start();
+}
+
+function fastPulseSingle(o, scale, period) {
+    var curState = { val:1 };
+    var newState = { val: 1 + scale };
+    var doneState = { val:1};
+
+    var tweenThere = new TWEEN.Tween(curState)
+        .to(newState, 1000 * period / 2)
+        .onUpdate( function() {
+            o.scale[curScaleAxis] = this.val;
+        }).easing(TWEEN.Easing.Elastic.Out);
+
+    var tweenBack = new TWEEN.Tween(newState)
+        .to(doneState, 1000 * period / 2)
+        .onUpdate( function() {
+            o.scale[curScaleAxis] = this.val;
+        })
+        .easing(TWEEN.Easing.Quartic.Out)
         .onComplete(function() {
             o.scale = {x:1, y:1, z:1 };
         });
@@ -647,6 +861,7 @@ function addEllies() {
        object.position.x = cwp * i - cwp * imageCount / 2 ;
        object.position.y = 0
        object.position.z = 0;
+       object.which = i;
        ellieG.add(object);
     }
     // makeCircle(ellieG.children, cubeWidth * 6, 6.2);
@@ -671,11 +886,17 @@ function addSoldiers(total) {
    var geometry = new THREE.CubeGeometry( cubeWidth, cubeWidth, cubeWidth );
     for ( var i = 0; i < count; i ++ ) {
         var soldier = new THREE.Mesh( geometry, materials[i % maxMaterials]);
-        soldier.position.x = Math.random() * 800 - 400;
-        soldier.position.y = 800;
-        soldier.position.z = Math.random() * 800 - 400;
+        soldier.position.x = Math.random() * 1200 - 600;
+        soldier.position.y = 1200 + Math.random() * 100;
+        soldier.position.z = Math.random() * 1200 - 600;
         soldierG.add(soldier);
     }
+
+    var shuffled = _.shuffle(soldierG.children);
+    // var shuffled = soldierG.children;
+    _.each(shuffled, function(o, i) {
+        o.which = i;
+    });
     calcMeterScale();
 }
 
@@ -686,8 +907,8 @@ function calcMeterScale() {
     var center = rows / 2;
     var maxDistance = Math.sqrt(center * center + center * center);
     _.each(soldierG.children, function(o, i) {
-        var r = i % rows;
-        var c = Math.floor(i / rows);
+        var r = o.which % rows;
+        var c = Math.floor(o.which / rows);
         var dx = center - r;
         var dy = center - c;
         var distance = Math.sqrt(dx * dx + dy * dy);
