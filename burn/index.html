@@ -53,7 +53,7 @@ var theScenes = [
 
     { start:120, duration:12, scene:pre(2)},    // 25 * 25
     { start:132, duration:11, scene:theBreak()},
-    { start:143, duration:12, scene:theBuild()},
+    { start:143, duration:22, scene:theBuild()},
 
     { start:165, duration:12, scene:pre(3)},    // 30 * 30
     { start:182, duration:4.7, scene:chorus(2)},
@@ -138,7 +138,7 @@ function pre(level) {
                 if (level == 4) {
                     makeHeart(soldierG.children, .5, 1, (duration -1) / soldierG.children.length);
                 } else if (level == 3) {
-                    makeSpiral(soldierG.children, 100, 20, 1, (duration - 3) / soldierG.children.length);
+                    makeSpiral(soldierG.children, 100, 20, 1, (duration - 1) / soldierG.children.length);
                 } else {
                     makeFlatSquare(soldierG.children, 1.2, 1, (duration - 1) / soldierG.children.length);
                 }
@@ -183,7 +183,7 @@ function theBreak(level) {
     return {
         'start': function(start, duration) {
             console.log('theBreak', level, start, duration);
-            randomSnow(soldierG.children, 1200, duration * 2, 2/soldierG.children.length, 1);
+            randomSnow(soldierG.children, 600, duration, 1/soldierG.children.length, 1);
         }
     }
 }
@@ -194,8 +194,8 @@ function theBuild(level) {
         'start': function(start, duration) {
             console.log('theBuild', level, start, duration);
             makeCylinderPattern(10, 1, 0, 4, 0);
-            randomSnow(soldierG.children, 0, duration - 3, 2/soldierG.children.length, 0);
-            waitFor(duration - 2.5, function() {
+            randomSnow(soldierG.children, 0, duration - 3.0, 1 /soldierG.children.length, 0);
+            waitFor(duration - 3.0, function() {
                 makeCylinder(60, 1, 2, 2, 0);
                 pulse = true;
             });
@@ -205,8 +205,11 @@ function theBuild(level) {
             if (soldierG.children.length > 0 && pulse) {
                 var idx = q.which % soldierG.children.length;
                 var o = soldierG.children[idx];
-                peakMeter(soldierG.children, q.volume, 8, q.duration);
+                peakMeter(soldierG.children, q.volume, 4, q.duration);
             }
+        },
+
+        'end' : function() {
         }
     }
 }
@@ -431,12 +434,12 @@ function moveTo(o, x, y, z, time, delay) {
 }
 
 function dither() {
-    return Math.random() / 10;
+    return Math.random() / 3;
 }
 
 function oMoveTo(o, x, y, z, time, delay) {
     var curPos = { x: o.position.x, y:o.position.y, z:o.position.z };
-    var newPos = { x: x, y:y, z:z };
+    var newPos = { x: x + dither(), y:y + dither(), z:z + dither() };
 
     var tween = new TWEEN.Tween(curPos)
         .to(newPos, time * 1000)
@@ -597,13 +600,14 @@ function randomSnow(objects, height, time, delay, fwd) {
     _.each(list, function(o, i) {
         //var time = Math.random() * 2 + 2;
         var x = Math.random() * 300 - 200;
+        var z = Math.random() * 300 - 200;
         var y = Math.random() * 400 - 200;
         if (i % 2 == fwd) {
             y += height
         } else {
             y -= height
         }
-        moveTo(o, x, y, 0, time, i * delay);
+        moveTo(o, x, y, z, time, i * delay);
     });
 }
 
@@ -746,7 +750,9 @@ function makeHeart(objs, scale, duration, delay) {
         return i * cubeWidth * scale + Math.random();
     }
 
-    objs.forEach(function(o, i) {
+    var sobjs = _.clone(objs);
+    sobjs = _.shuffle(sobjs);
+    sobjs.forEach(function(o, i) {
         var angle = (o.which % hearts) / hearts * Math.PI * 2;
         var sinx = Math.sin(angle);
         var cosx = Math.cos(angle);
