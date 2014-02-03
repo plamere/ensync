@@ -387,6 +387,16 @@ function running() {
     info.style.padding = '0px';
 }
 
+function showOpeningMessage() {
+    info.style.padding = '10px';
+    info.innerHTML = 'Burn - Ellie Goulding - created by <a href="http://twitter.com/plamere">@plamere</a>' +
+       ' at Midem Music Hack Day 2014.<br>' +
+       ' Powered by <a href="http://the.echonest.com">The Echo Nest</a>' +
+       ' and <a href="http://threejs.org"> Three.js</a>.  See ' + 
+       '<a href="http://musicmachinery.com" target="_blank">Music Machinery</a> for more info' +
+       '<br> loading ...';
+}
+
 function showFinishedMessage() {
     info.style.padding = '10px';
     info.innerHTML = 'Burn - Ellie Goulding - created by <a href="http://twitter.com/plamere">@plamere</a>' +
