@@ -10,7 +10,6 @@
 		<script src="js/lodash.min.js"></script>
 		<script src="js/ensync.js"></script>
 		<script src="SceneManager.js?v3"></script>
-         <link href="styles.css" rel="stylesheet" media="screen">
 	</head>
 <body>
 <script>
@@ -32,6 +31,9 @@ var theSong = null;
 var sm;     // the scene manager
 var ellieG;
 var soldierG;
+var played = false;
+var readyToPlay = false;
+var info;
 
 var theScenes = [
     { start:0, duration:300, scene:ElliePulser('simple pulser')},
@@ -63,7 +65,8 @@ var theScenes = [
     { start:200, duration:16, scene:pre(4)},
     { start:216, duration:6, scene:chorus(3)},
     { start:222, duration:1, scene:finalBurn()},
-    { start:223, duration:4, scene:fade()},
+    //{ start:223, duration:6, scene:fade()},
+    { start:226.8, duration:6, scene:fade()},
 ];
 
 
@@ -79,6 +82,7 @@ function introScene() {
                 function() {
                     var time = 1;
                     makeFlatSquare(soldierG.children, 1.2, time, (duration - 4 - time) / soldierG.children.length);
+                    rotateContinuous(ellieG, duration - 4, duration - 4);
                 }
             );
         },
@@ -129,6 +133,7 @@ function pre(level) {
                 } else if (level == 1) {
                     addSoldiers(25 * 25); // total 625
                 } else if (level == 2) {
+                    moveTo(ellieG, 0, 0, 0, 3, 0);
                     addSoldiers(30 * 30); // total 900
                 }
                 var scale = 1.2;
@@ -136,9 +141,10 @@ function pre(level) {
                 moveCameraRadius(radius * scale * 1.1,  duration - 1, 0);
 
                 if (level == 4) {
-                    makeHeart(soldierG.children, .5, 1, (duration -1) / soldierG.children.length);
+                    makeHeart(soldierG.children, .5, 4, (duration -1) / soldierG.children.length);
+                    rotateContinuous(ellieG, 3, 100);
                 } else if (level == 3) {
-                    makeSpiral(soldierG.children, 100, 20, 1, (duration - 1) / soldierG.children.length);
+                    makeSpiral(soldierG.children, 100, 20, 3, (duration - 1) / soldierG.children.length);
                 } else {
                     makeFlatSquare(soldierG.children, 1.2, 1, (duration - 1) / soldierG.children.length);
                 }
@@ -153,7 +159,7 @@ function chorus(level) {
             if (level != 3) {
                 console.log('chorus', level, start, duration);
                 //makeHeart(soldierG.children, .5, 1, 0);
-                makeVSpiral(soldierG.children, 200, 20, 1, (duration - 3) / soldierG.children.length);
+                makeVSpiral(soldierG.children, 100, 20, 1, (duration - 3) / soldierG.children.length);
             }
         }
     }
@@ -183,7 +189,7 @@ function theBreak(level) {
     return {
         'start': function(start, duration) {
             console.log('theBreak', level, start, duration);
-            randomSnow(soldierG.children, 600, duration, 1/soldierG.children.length, 1);
+            randomSnow(soldierG.children, 500, duration, 1/soldierG.children.length, 1);
         }
     }
 }
@@ -194,10 +200,19 @@ function theBuild(level) {
         'start': function(start, duration) {
             console.log('theBuild', level, start, duration);
             makeCylinderPattern(10, 1, 0, 4, 0);
-            randomSnow(soldierG.children, 0, duration - 3.0, 1 /soldierG.children.length, 0);
-            waitFor(duration - 3.0, function() {
-                makeCylinder(60, 1, 2, 2, 0);
+            randomSnow(soldierG.children, 200, duration - 3.0, 1 /soldierG.children.length, 0);
+            waitFor(duration - 9.0, function() {
                 pulse = true;
+                rotateContinuous(ellieG, 9, 3);
+            });
+            waitFor(duration - 6.0, function() {
+                pulse = true;
+                rotateContinuous(ellieG, 6, 3);
+            });
+            waitFor(duration - 3.0, function() {
+                rotateContinuous(ellieG, 3, 3);
+                //makeCylinder(60, 1, 2, 2, 0);
+                makeHelix(soldierG.children, 80, 1, -200, 3, 0);
             });
         },
 
@@ -227,6 +242,7 @@ function finalBurn() {
     return {
         'start': function(start, duration) {
             console.log('finalburn', start, duration);
+            moveCameraRadius(900, 2,  0);
         }
     }
 }
@@ -236,10 +252,11 @@ function fade() {
         'start': function(start, duration) {
             console.log('fade', start, duration);
             cameraRotateSpeed = .10;
+            showFinishedMessage();
+            //theta = 0;
         },
 
         'end' : function() {
-            cameraRotateSpeed = 0
             theSong.stop();
         }
     }
@@ -305,18 +322,22 @@ function ElliePulser() {
 
 
 function init() {
-    loadSong();
-    initKeyInput();
     container = document.createElement( 'div' );
     document.body.appendChild( container );
 
-    var info = document.createElement( 'div' );
+    info = document.createElement( 'div' );
     info.style.position = 'absolute';
     info.style.top = '10px';
+    info.style.padding = '10px';
     info.style.width = '100%';
+    info.style.color = '#cccccc';
+    info.style['background-color'] = '#777777';
     info.style.textAlign = 'center';
-    info.innerHTML = '<a href="http://threejs.org" target="_blank">three.js</a> ensync demo';
+    info.innerHTML = 'Burn - Ellie Goulding';
     container.appendChild( info );
+
+    loadSong();
+    initKeyInput();
 
     camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 1, 10000 );
     scene = new THREE.Scene();
@@ -338,12 +359,41 @@ function init() {
     renderer.sortObjects = false;
     container.appendChild(renderer.domElement);
 
+    /*
     stats = new Stats();
     stats.domElement.style.position = 'absolute';
     stats.domElement.style.top = '0px';
     container.appendChild( stats.domElement );
+    */
 
     window.addEventListener( 'resize', onWindowResize, false );
+}
+
+function ready() {
+    info.innerHTML = 'Burn - Ellie Goulding - press space to begin';
+    readyToPlay = true;
+}
+
+function error(msg) {
+    info.innerHTML = msg;
+}
+
+function loading(percent) {
+    info.innerHTML = 'Burn - Ellie Goulding - loading ' + percent + "%";
+}
+
+function running() {
+    info.innerHTML = '';
+    info.style.padding = '0px';
+}
+
+function showFinishedMessage() {
+    info.style.padding = '10px';
+    info.innerHTML = 'Burn - Ellie Goulding - created by <a href="http://twitter.com/plamere">@plamere</a>' +
+       ' at Midem Music Hack Day 2014.<br>' +
+       ' Powered by <a href="http://the.echonest.com">The Echo Nest</a>' +
+       ' and <a href="http://threejs.org"> Three.js</a>.  See ' + 
+       '<a href="http://musicmachinery.com" target="_blank">Music Machinery</a> for more info';
 }
 
 function queueCmd(o, tween, onComplete) {
@@ -376,7 +426,6 @@ function queueCmd(o, tween, onComplete) {
 
 function initKeyInput() {
     window.addEventListener( 'keydown', function ( event ) {
-        console.log('key', event.which);
         if (event.which === 39) {   // right arrow
         }
         if (event.which === 37) {  // left arrow
@@ -396,7 +445,11 @@ function initKeyInput() {
         }
 
         if (event.which === 32) {  // space
-            slam(5,2, .5);
+            if (!played && readyToPlay) {
+                sm.start();
+                played = true;
+                running();
+            }
         }
     });
 
@@ -593,15 +646,33 @@ function makeSpiral(objects, initialRadius, padding, time, delay) {
     });
 }
 
+function makeHelix(objects, radius, padding, initialHeight, time, delay) {
+    var cw = cubeWidth + padding;
+    var angle = 0;
+    var circumference = 2 * Math.PI * 2 * (radius - cw);
+    var z = initialHeight;
+    var numBlocks = circumference / cw;
+    var heightDelta = cw/numBlocks;
+    var angleDelta = Math.PI * 2 / numBlocks;
+
+    objects.forEach(function(o, i) {
+        var x = radius * Math.sin(angle);
+        var y = radius * Math.cos(angle);
+        angle += angleDelta;
+        z += heightDelta;
+        moveTo(o, x, z, y, time, i * delay);
+        rotateTo(o, 0, angle, 0, time, i* delay);
+    });
+}
+
 function randomSnow(objects, height, time, delay, fwd) {
     var list = _.clone(objects);
     list = _.shuffle(list);
-    console.log('rand snow', time, delay, fwd);
     _.each(list, function(o, i) {
         //var time = Math.random() * 2 + 2;
-        var x = Math.random() * 300 - 200;
-        var z = Math.random() * 300 - 200;
-        var y = Math.random() * 400 - 200;
+        var x = Math.random() * 200 - 100;
+        var z = Math.random() * 200 - 100;
+        var y = Math.random() * 600 - 300;
         if (i % 2 == fwd) {
             y += height
         } else {
@@ -694,7 +765,6 @@ function slam(wideScale, narrowScale, time) {
         var curState = {x:o.position.x, y:o.position.y, z:o.position.z };
         var finalState = {x:o.position.x, y:o.position.y, z:o.position.z };
 
-        // console.log(o, curState, finalState, wide, narrow);
         var tweenThere = new TWEEN.Tween(curState)
             .to(wide, time / 4 * 1000)
             .onUpdate( function() {
@@ -847,7 +917,7 @@ function fastPulseSingle(o, scale, period) {
 
 function rotateSingle(o, period) {
     var curState = { val:0 };
-    var newState = { val: Math.PI };
+    var newState = { val: Math.PI / 2 };
 
     var tweenThere = new TWEEN.Tween(curState)
         .to(newState, 1000 * period)
@@ -855,6 +925,27 @@ function rotateSingle(o, period) {
             o.rotation.y = this.val;
         })
         .easing(TWEEN.Easing.Elastic.Out);
+    tweenThere.start();
+}
+
+function rotateContinuous(o, period, time) {
+    var curState = { val:0 };
+    var newState = { val: Math.PI * 2 };
+    var startTime = theSong.now();
+
+    var tweenThere = new TWEEN.Tween(curState)
+        .to(newState, 1000 * period)
+        .onUpdate( function() {
+            o.rotation.y = this.val;
+        })
+        .easing(TWEEN.Easing.Linear.None)
+        .onComplete(function() {
+            if (theSong.now() - startTime < time) {
+                o.rotation.y = 0;
+                curState.val = 0;
+                tweenThere.start();
+            }
+        });
     tweenThere.start();
 }
 
@@ -893,15 +984,22 @@ function loadSong() {
             }
             sm = SceneManager(theSong, events);
             sm.addScenes(theScenes);
-            animate();
+            if (renderer) {
+                ready();
+                animate();
+            } else {
+                error("Sorry - your browser doesn't seem to support webgl");
+            }
         },
 
         function(err) {
             console.log('ERROR ' + err);
+            error('Sorry, had trouble loading up the song');
         },
 
         function(progress) {
             console.log('loading progress', progress);
+            loading(progress);
         }
     );
 }
@@ -1066,16 +1164,15 @@ function animate() {
     TWEEN.update();
     sm.update();
     render();
-    stats.update();
+    // stats.update();
 }
 
 function render() {
-    if (theSong.isPlaying()) {
-        theta += cameraRotateSpeed;
-    }
+    theta += cameraRotateSpeed;
     camera.position.x = radius * Math.sin( THREE.Math.degToRad( theta ) );
     camera.position.y = radius * Math.sin( THREE.Math.degToRad( theta ) );
     camera.position.z = radius * Math.cos( THREE.Math.degToRad( theta ) );
+
     camera.lookAt( scene.position );
     renderer.render( scene, camera );
 }
