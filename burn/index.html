@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 	<head>
-		<title>Ellie Goulding - burn</title>
+		<title>Cannes Burn</title>
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
 		<script src="js/three.min.js"></script>
@@ -333,7 +333,7 @@ function init() {
     info.style.color = '#cccccc';
     info.style['background-color'] = '#777777';
     info.style.textAlign = 'center';
-    info.innerHTML = 'Burn - Ellie Goulding';
+    info.innerHTML = 'Cannes Burn - Ellie Goulding';
     container.appendChild( info );
 
     loadSong();
@@ -370,7 +370,7 @@ function init() {
 }
 
 function ready() {
-    info.innerHTML = 'Burn - Ellie Goulding - press space to begin';
+    info.innerHTML = 'Cannes Burn - Ellie Goulding - press space to begin';
     readyToPlay = true;
 }
 
@@ -379,7 +379,7 @@ function error(msg) {
 }
 
 function loading(percent) {
-    info.innerHTML = 'Burn - Ellie Goulding - loading ' + percent + "%";
+    info.innerHTML = 'Cannes Burn - Ellie Goulding - loading ' + percent + "%";
 }
 
 function running() {
@@ -387,23 +387,13 @@ function running() {
     info.style.padding = '0px';
 }
 
-function showOpeningMessage() {
-    info.style.padding = '10px';
-    info.innerHTML = 'Burn - Ellie Goulding - created by <a href="http://twitter.com/plamere">@plamere</a>' +
-       ' at Midem Music Hack Day 2014.<br>' +
-       ' Powered by <a href="http://the.echonest.com">The Echo Nest</a>' +
-       ' and <a href="http://threejs.org"> Three.js</a>.  See ' + 
-       '<a href="http://musicmachinery.com" target="_blank">Music Machinery</a> for more info' +
-       '<br> loading ...';
-}
-
 function showFinishedMessage() {
     info.style.padding = '10px';
-    info.innerHTML = 'Burn - Ellie Goulding - created by <a href="http://twitter.com/plamere">@plamere</a>' +
+    info.innerHTML = 'Cannes Burn - Ellie Goulding - created by <a href="http://twitter.com/plamere">@plamere</a>' +
        ' at Midem Music Hack Day 2014.<br>' +
        ' Powered by <a href="http://the.echonest.com">The Echo Nest</a>' +
        ' and <a href="http://threejs.org"> Three.js</a>.  See ' + 
-       '<a href="http://musicmachinery.com" target="_blank">Music Machinery</a> for more info';
+       '<a href="http://musicmachinery.com/2014/02/03/cannes-burn/" target="_blank">Music Machinery</a> for more info';
 }
 
 function queueCmd(o, tween, onComplete) {
@@ -1192,4 +1182,20 @@ init();
 
 </script>
 </body>
+<script type="text/javascript">
+
+  var _gaq = _gaq || [];
+  _gaq.push(['_setAccount', 'UA-3675615-27']);
+  _gaq.push(['_trackPageview']);
+
+  (function() {
+    var ga = document.createElement('script'); ga.type =
+'text/javascript'; ga.async = true;
+    ga.src = ('https:' == document.location.protocol ? 'https://ssl' :
+'http://www') + '.google-analytics.com/ga.js';
+    var s = document.getElementsByTagName('script')[0];
+s.parentNode.insertBefore(ga, s);
+  })();
+
+</script>
 </html>
