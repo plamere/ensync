@@ -19,10 +19,7 @@ var camera, scene, renderer;
 var radius = 100, theta = 0;
 var cubeWidth = 20;
 
-var maxSoldiers = 9 * 9 * 9;
 var cameraRotateSpeed = 0;
-var rows = 27;
-var cRows = 9;
 var prebeat = .3;
 var preseg = .2;
 var curScaleAxis = 'y';
@@ -34,11 +31,11 @@ var soldierG;
 var played = false;
 var readyToPlay = false;
 var info;
+var maxMaterials = 32;
+var materials = [];
 
 var theScenes = [
     { start:0, duration:300, scene:ElliePulser('simple pulser')},
-//    { start:0, duration:300, scene:SimplePulser('simple pulser', 'prebeat', prebeat, 1.5)},
-//    { start:0, duration:300, scene:SimplePulser('simple pulser', 'presegment', preseg, 1.5)},
 
     { start:0, duration:11, scene:introScene()},
 
@@ -65,7 +62,6 @@ var theScenes = [
     { start:200, duration:16, scene:pre(4)},
     { start:216, duration:6, scene:chorus(3)},
     { start:222, duration:1, scene:finalBurn()},
-    //{ start:223, duration:6, scene:fade()},
     { start:226.8, duration:6, scene:fade()},
 ];
 
@@ -170,6 +166,9 @@ function burn(level) {
         'start': function(start, duration) {
             console.log('burn', level, start, duration);
             makeFlatSquare(soldierG.children, 1.2, .3, 0);
+            if (level < 2) {
+                // changeColors(getBurnColor, .3, 0);
+            }
         },
 
         'presegment' : function(q) {
@@ -181,7 +180,13 @@ function burn(level) {
                     slam(5, 2, q.duration);
                 }
             }
-        }
+        },
+
+        'stop': function(start, duration) {
+            if (level < 2) {
+                // changeColors(getStartColor, .3, 0);
+            }
+        },
     }
 }
 
@@ -204,6 +209,7 @@ function theBuild(level) {
             waitFor(duration - 9.0, function() {
                 pulse = true;
                 rotateContinuous(ellieG, 9, 3);
+                changeColors(getBuildColor, 6, 3 / materials.length);
             });
             waitFor(duration - 6.0, function() {
                 pulse = true;
@@ -223,9 +229,6 @@ function theBuild(level) {
                 peakMeter(soldierG.children, q.volume, 4, q.duration);
             }
         },
-
-        'end' : function() {
-        }
     }
 }
 
@@ -253,10 +256,10 @@ function fade() {
             console.log('fade', start, duration);
             cameraRotateSpeed = .10;
             showFinishedMessage();
-            //theta = 0;
+            changeColors(getFinalColor, 10, duration / materials.length);
         },
 
-        'end' : function() {
+        'stop' : function() {
             theSong.stop();
         }
     }
@@ -269,6 +272,26 @@ function SimpleFlatSquare(name, scale, dur, delay) {
             makeFlatSquare(scale, dur, delay);
         }
     }
+}
+
+function changeColor(material, newColor, time, delay) {
+    var curColor = _.clone(material.color);
+    var tween = new TWEEN.Tween(curColor)
+        .to(newColor, time * 1000)
+        .onUpdate( function() {
+            material.color.r = curColor.r;
+            material.color.g = curColor.g;
+            material.color.b = curColor.b;
+        })
+        .easing(TWEEN.Easing.Sinusoidal.InOut)
+        .delay(delay * 1000)
+        .start();
+}
+
+function changeColors(colorFunc, time, delay) {
+    _.each(materials, function(material, i) {
+        changeColor(material, colorFunc(), time, delay);
+    });
 }
 
 function SimpleCylinder(name, rows, radius, gap, duration, delay) {
@@ -526,19 +549,6 @@ function rotateTo(o, x, y, z, time, delay) {
         .start();
 }
 
-function makeSquare() {
-    function getRow(i) {
-        return Math.floor(i / rows) * 20 - rows / 2 * 20;
-    }
-
-    function getCol(i) {
-        return i % rows * 20 - rows / 2 * 20;
-    }
-
-    soldierG.children.forEach(function(o, i) {
-        oMoveTo(o, getRow(i), getCol(i), 0, 1, i);
-    });
-}
 
 function makeFlatSquare(objects, scale, duration, delay) {
     var cubeScale = cubeWidth * scale;
@@ -1023,16 +1033,68 @@ function addEllies() {
        object.which = i;
        ellieG.add(object);
     }
-    // makeCircle(ellieG.children, cubeWidth * 6, 6.2);
 }
 
 
-var maxMaterials = 32;
-var materials = [];
+// reds and golds
+function getStartColor() {
+    var color = new THREE.Color();
+    var red = new THREE.Color(0xaa0000);
+    color.r = rrange(0, .6);
+    color.g = rrange(0, .6);
+    color.b = rrange(0, .6);
+    color = mixColor(red, color);
+    return color;
+}
+
+function getBurnColor() {
+    var color = new THREE.Color();
+    var mix = new THREE.Color(0x1010aa);
+    color.r = rrange(0, .6);
+    color.g = rrange(0, .6);
+    color.b = rrange(0, .6);
+    color = mixColor(mix, color);
+    return color;
+}
+
+// deep reds
+function getFinalColor() {
+    var color = new THREE.Color();
+    var red = new THREE.Color(0xaa0000);
+    color.r = rrange(.2, .4);
+    color.g = rrange(0, .1);
+    color.b = rrange(0, .1);
+    return color;
+}
+
+// rich greens
+function getBuildColor() {
+    var color = new THREE.Color();
+    var mix = new THREE.Color(0x10aa10);
+    color.r = rrange(0, .6);
+    color.g = rrange(0, .6);
+    color.b = rrange(0, .6);
+    color = mixColor(mix, color);
+    return color;
+}
+
+function mixColor(c1, c2) {
+    var color = new THREE.Color();
+    color.r = (c1.r + c2.r) / 2;
+    color.g = (c1.g + c2.g) / 2;
+    color.b = (c1.b + c2.b) / 2;
+    return color;
+}
+
+function rrange(low, high) {
+    return (high - low) * Math.random() + low;
+}
+
 
 function initMaterials() {
     for ( var i = 0; i < maxMaterials; i ++ ) {
-        var color = Math.random() * 0xffffff;
+        // var color = Math.random() * 0xffffff;
+        var color = getStartColor();
         var color2 = Math.random() * 0xffffff;
         var material = new THREE.MeshPhongMaterial( 
             { color: color, ambient:color2, specular:0x050505, shininess:100 } );
@@ -1078,21 +1140,29 @@ function calcMeterScale() {
 
 
 function addLights() {
-    var light = new THREE.PointLight( 0xff00ff, .5, 0 );
-    light.position.set( 200, 200, 200 ).normalize();
-    scene.add( light );
+    var plight = new THREE.PointLight( 0xff00ff, 1, 0 );
+    plight.position.set( 200, 200, 200 ).normalize();
+    scene.add( plight );
 
-    var light2 = new THREE.PointLight( 0xffffff, 1, 0 );
-    light2.position.set( -200, -200, -200 ).normalize();
-    scene.add( light2 );
+    var plight2 = new THREE.PointLight( 0xffffff, 1, 0 );
+    plight2.position.set( -200, 200, 200 ).normalize();
+    scene.add( plight2 );
 
-    var light3 = new THREE.DirectionalLight( 0xffffff );
-    light3.position.set( -1, -1, -1 ).normalize();
-    scene.add( light3 );
+    var plight3 = new THREE.PointLight( 0xffffff, 1, 0 );
+    plight2.position.set( -200, 200, -200 ).normalize();
+    scene.add( plight3 );
 
-    var light4 = new THREE.DirectionalLight( 0xffffff, 2 );
-    light4.position.set( 1, 1, 1 ).normalize();
-    scene.add( light4 );
+    var plight4 = new THREE.PointLight( 0xffffff, 1, 0 );
+    plight4.position.set(0, -200, 0 ).normalize();
+    scene.add( plight4 );
+
+    var dlight1 = new THREE.DirectionalLight( 0xffffff );
+    dlight1.position.set( -1, -1, -1 ).normalize();
+    scene.add( dlight1 );
+
+    var dlight2 = new THREE.DirectionalLight( 0xffffff, 2 );
+    dlight2.position.set( 1, 1, 1 ).normalize();
+    scene.add( dlight2 );
 }
 
 function addStars() {
