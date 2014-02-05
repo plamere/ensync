@@ -33,6 +33,9 @@ var readyToPlay = false;
 var info;
 var maxMaterials = 32;
 var materials = [];
+var fps = 60;
+
+var ellieRotateSpeed = 0;
 
 var theScenes = [
     { start:0, duration:300, scene:ElliePulser('simple pulser')},
@@ -77,19 +80,12 @@ function introScene() {
             waitFor(4,
                 function() {
                     var time = 1;
-                    makeFlatSquare(soldierG.children, 1.2, time, (duration - 4 - time) / soldierG.children.length);
-                    rotateContinuous(ellieG, duration - 4, duration - 4);
+                    makeFlatSquare2(soldierG.children, 1.2, time, (duration - 4 - time) / soldierG.children.length);
+                    setEllieRotateSpeed(duration - 4);
                 }
             );
         },
 
-        'prebeat' : function(q) {
-            if (soldierG.children.length > 0) {
-                var idx = q.which % soldierG.children.length;
-                var o = soldierG.children[idx];
-                fastPulseSingle(o, 4, q.duration / 2);
-            }
-        }
     }
 }
 
@@ -97,6 +93,7 @@ function verse(level) {
     return {
         'start': function(start, duration) {
             cameraRotateSpeed = -.2;
+            setEllieRotateSpeed(0);
             console.log('verse', level, start, duration);
             waitFor(8, function() {
                 makeCylinder(10, 1, 0, 4, 0);
@@ -122,6 +119,7 @@ function pre(level) {
             cameraRotateSpeed =  cameraRotateSpeed * -1.5;
             console.log('pre', level, start, duration);
             makeSquareOutline(soldierG.children, soldierG.children.length / 4 * 0.8 * cubeWidth, 1, 0);
+            setEllieRotateSpeed(0);
             waitFor(1, function() {
                 if (level == 0) {
                     addSoldiers(15 * 15);   // total 400
@@ -137,12 +135,13 @@ function pre(level) {
                 moveCameraRadius(radius * scale * 1.1,  duration - 1, 0);
 
                 if (level == 4) {
+                    changeColors(getFinalColor, duration, 0);
                     makeHeart(soldierG.children, .5, 4, (duration -1) / soldierG.children.length);
-                    rotateContinuous(ellieG, 3, 100);
+                    setEllieRotateSpeed(3);
                 } else if (level == 3) {
                     makeSpiral(soldierG.children, 100, 20, 3, (duration - 1) / soldierG.children.length);
                 } else {
-                    makeFlatSquare(soldierG.children, 1.2, 1, (duration - 1) / soldierG.children.length);
+                    makeFlatSquare(soldierG.children, 1.2, 1, (duration - 2) / soldierG.children.length);
                 }
             });
         }
@@ -206,19 +205,26 @@ function theBuild(level) {
             console.log('theBuild', level, start, duration);
             makeCylinderPattern(10, 1, 0, 4, 0);
             randomSnow(soldierG.children, 200, duration - 3.0, 1 /soldierG.children.length, 0);
-            waitFor(duration - 9.0, function() {
-                pulse = true;
-                rotateContinuous(ellieG, 9, 3);
-                changeColors(getBuildColor, 6, 3 / materials.length);
+            setEllieRotateSpeed(12);
+
+            waitFor(5.5, function() {
+                setEllieRotateSpeed(9);
+                changeColors(getBuildColor, 11, 3 / materials.length);
             });
-            waitFor(duration - 6.0, function() {
+
+            waitFor(11, function() {
                 pulse = true;
-                rotateContinuous(ellieG, 6, 3);
+                setEllieRotateSpeed(6);
             });
-            waitFor(duration - 3.0, function() {
-                rotateContinuous(ellieG, 3, 3);
-                //makeCylinder(60, 1, 2, 2, 0);
-                makeHelix(soldierG.children, 80, 1, -200, 3, 0);
+
+            waitFor(16, function() {
+                setEllieRotateSpeed(3);
+                makeHelix(soldierG.children, 80, 1, -200, 6, 0);
+            });
+
+            waitFor(18, function() {
+                setEllieRotateSpeed(1);
+                pulse = true;
             });
         },
 
@@ -237,6 +243,9 @@ function allStop(level) {
         'start': function(start, duration) {
             console.log('allStop', level, start, duration);
             makeCube(soldierG.children, .3, 0);
+        },
+
+        'stop': function() {
         }
     }
 }
@@ -246,6 +255,7 @@ function finalBurn() {
         'start': function(start, duration) {
             console.log('finalburn', start, duration);
             moveCameraRadius(900, 2,  0);
+            setEllieRotateSpeed(12);
         }
     }
 }
@@ -260,6 +270,7 @@ function fade() {
         },
 
         'stop' : function() {
+            ga_track('main', 'finished', '');
             theSong.stop();
         }
     }
@@ -402,7 +413,12 @@ function error(msg) {
 }
 
 function loading(percent) {
-    info.innerHTML = 'Cannes Burn - Ellie Goulding - loading ' + percent + "%";
+    if (isNaN(percent)) {
+        // firefox doesn't get the percent
+        info.innerHTML = 'Cannes Burn - Ellie Goulding - loading ...';
+    } else {
+        info.innerHTML = 'Cannes Burn - Ellie Goulding - loading ' + percent + "%";
+    }
 }
 
 function running() {
@@ -472,6 +488,7 @@ function initKeyInput() {
                 sm.start();
                 played = true;
                 running();
+                ga_track('main', 'started', '');
             }
         }
     });
@@ -550,7 +567,7 @@ function rotateTo(o, x, y, z, time, delay) {
 }
 
 
-function makeFlatSquare(objects, scale, duration, delay) {
+function makeFlatSquare2(objects, scale, duration, delay) {
     var cubeScale = cubeWidth * scale;
     var rows = Math.floor(Math.sqrt(objects.length));
     function getRow(i) {
@@ -563,6 +580,28 @@ function makeFlatSquare(objects, scale, duration, delay) {
 
     objects.forEach(function(o, i) {
         oMoveTo(o, getRow(o.which), 0, getCol(o.which), duration, o.which * delay);
+    });
+}
+
+function makeFlatSquare(objects, scale, duration, delay) {
+    var cubeScale = cubeWidth * scale;
+    var rows = Math.floor(Math.sqrt(objects.length));
+    function getRow(i) {
+        return Math.floor(i / rows) * cubeScale - rows / 2 * cubeScale;
+    }
+
+    function getCol(i) {
+        return i % rows * cubeScale - rows / 2 * cubeScale;
+    }
+
+    objects.forEach(function(o, i) {
+        var w = o.which;
+        if (w % 2 == 1) {
+            w = Math.floor(w / 2);
+        } else {
+            w = (objects.length - 1) - Math.floor(w / 2);
+        }
+        oMoveTo(o, getRow(w), 0, getCol(w), duration, o.which * delay);
     });
 }
 
@@ -938,9 +977,23 @@ function rotateSingle(o, period) {
     tweenThere.start();
 }
 
+function setEllieRotateSpeed(period) {
+    if (period == 0 || fps == 0) {
+        ellieRotateSpeed = 0;
+    } else {
+        ellieRotateSpeed = Math.PI * 2  / period / fps;
+    }
+}
+
+
 function rotateContinuous(o, period, time) {
-    var curState = { val:0 };
-    var newState = { val: Math.PI * 2 };
+    setEllieRotateSpeed(period);
+}
+
+function rotateContinuous2(o, period, time) {
+    console.log('rotCont', period, time);
+    var curState = { val:o.rotation.y };
+    var newState = { val: o.rotation.y + Math.PI * 2 };
     var startTime = theSong.now();
 
     var tweenThere = new TWEEN.Tween(curState)
@@ -951,8 +1004,7 @@ function rotateContinuous(o, period, time) {
         .easing(TWEEN.Easing.Linear.None)
         .onComplete(function() {
             if (theSong.now() - startTime < time) {
-                o.rotation.y = 0;
-                curState.val = 0;
+                curState.val = o.rotation.y;
                 tweenThere.start();
             }
         });
@@ -998,7 +1050,8 @@ function loadSong() {
                 ready();
                 animate();
             } else {
-                error("Sorry - your browser doesn't seem to support webgl");
+                error("Sorry - your browser doesn't seem to support webgl. Try Chrome, Firefox or Safari");
+                ga_track('main', 'no-webgl', '');
             }
         },
 
@@ -1229,7 +1282,14 @@ function onWindowResize() {
 
 //
 
-function animate() {
+var last_ts = 0;
+
+function animate(ts) {
+
+    if (last_ts) {
+        fps = 1000 / (ts - last_ts);
+    }
+    last_ts = ts;
     requestAnimationFrame( animate );
     TWEEN.update();
     sm.update();
@@ -1239,6 +1299,7 @@ function animate() {
 
 function render() {
     theta += cameraRotateSpeed;
+    ellieG.rotation.y += ellieRotateSpeed;
     camera.position.x = radius * Math.sin( THREE.Math.degToRad( theta ) );
     camera.position.y = radius * Math.sin( THREE.Math.degToRad( theta ) );
     camera.position.z = radius * Math.cos( THREE.Math.degToRad( theta ) );
@@ -1266,6 +1327,11 @@ init();
     var s = document.getElementsByTagName('script')[0];
 s.parentNode.insertBefore(ga, s);
   })();
+
+function ga_track(page, action, id) {
+    console.log('ga_track', page, action, id);
+    _gaq.push(['_trackEvent', page, action, id]);
+}
 
 </script>
 </html>
