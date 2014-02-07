@@ -270,7 +270,6 @@ function fade() {
         },
 
         'stop' : function() {
-            ga_track('main', 'finished', '');
             theSong.stop();
         }
     }
@@ -359,6 +358,8 @@ function init() {
     container = document.createElement( 'div' );
     document.body.appendChild( container );
 
+    ga_track('burn', 'burn-init', '');
+
     info = document.createElement( 'div' );
     info.style.position = 'absolute';
     info.style.top = '10px';
@@ -427,6 +428,7 @@ function running() {
 }
 
 function showFinishedMessage() {
+    ga_track('burn', 'burn-finished', '');
     info.style.padding = '10px';
     info.innerHTML = 'Cannes Burn - Ellie Goulding - created by <a href="http://twitter.com/plamere">@plamere</a>' +
        ' at Midem Music Hack Day 2014.<br>' +
@@ -488,7 +490,7 @@ function initKeyInput() {
                 sm.start();
                 played = true;
                 running();
-                ga_track('main', 'started', '');
+                ga_track('burn', 'burn-start', '');
             }
         }
     });
@@ -1036,6 +1038,8 @@ function randomSlew() {
 }
 
 
+var videoEmbed = '<iframe style="padding-top:30px" width="960" height="720" src="//www.youtube.com/embed/1hDtlTWL5F0" frameborder="0" allowfullscreen></iframe> ';
+
 function loadSong() {
     ENSync.loadSongFromJSON("burn.js", "burn.mp3",
         function(song) {
@@ -1050,8 +1054,11 @@ function loadSong() {
                 ready();
                 animate();
             } else {
-                error("Sorry - your browser doesn't seem to support webgl. Try Chrome, Firefox or Safari");
-                ga_track('main', 'no-webgl', '');
+                error(
+                " Sorry - your browser doesn't seem to support webgl."  +
+                " You can watch this  video of this app. Or try Chrome, Firefox or Safari. <br> " +
+                  videoEmbed);
+                ga_track('burn', 'burn-error-no-webgl', '');
             }
         },
 
@@ -1308,7 +1315,6 @@ function render() {
     renderer.render( scene, camera );
 }
 
-init();
 
 
 </script>
@@ -1332,6 +1338,8 @@ function ga_track(page, action, id) {
     console.log('ga_track', page, action, id);
     _gaq.push(['_trackEvent', page, action, id]);
 }
+
+init();
 
 </script>
 </html>
