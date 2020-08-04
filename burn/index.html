@@ -405,7 +405,7 @@ function init() {
 }
 
 function ready() {
-    info.innerHTML = 'Cannes Burn - Ellie Goulding - press space to begin';
+    info.innerHTML = 'Cannes Burn - Ellie Goulding - <button class="go" id="go"> Go! </button> <button class="fullscreen"> fullscreen </button>';
     readyToPlay = true;
 }
 
@@ -486,6 +486,22 @@ function initKeyInput() {
         }
 
         if (event.which === 32) {  // space
+            if (!played && readyToPlay) {
+                sm.start();
+                played = true;
+                running();
+                ga_track('burn', 'burn-start', '');
+            }
+        }
+    });
+
+    document.addEventListener('click', function(event) {
+        if (event.target.matches('.fullscreen')) {
+            if (!document.fullScreenElement) {
+                document.documentElement.requestFullscreen()
+            }
+        }
+        if (event.target.matches('.go')) {
             if (!played && readyToPlay) {
                 sm.start();
                 played = true;
